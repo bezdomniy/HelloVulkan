@@ -81,6 +81,38 @@ std::vector<VkQueueFamilyProperties> getQueueFamilyProperties(VkPhysicalDevice& 
 	return queueFamilyProperties;
 }
 
+std::vector<VkLayerProperties> getLayerProperties()
+{
+	std::vector<VkLayerProperties> instanceLayerProperties;
+
+	uint32_t numInstanceLayers = 0;
+	vkEnumerateInstanceLayerProperties(&numInstanceLayers, nullptr);
+
+	if (numInstanceLayers > 0)
+	{
+		instanceLayerProperties.resize(numInstanceLayers);
+		vkEnumerateInstanceLayerProperties(&numInstanceLayers, instanceLayerProperties.data());
+	}
+
+	return instanceLayerProperties;
+}
+
+std::vector<VkExtensionProperties> getExtensionProperties()
+{
+	std::vector<VkExtensionProperties> instanceExtensionProperties;
+
+	uint32_t numInstanceExtensions = 0;
+	vkEnumerateInstanceExtensionProperties(nullptr, &numInstanceExtensions, nullptr);
+
+	if (numInstanceExtensions > 0)
+	{
+		instanceExtensionProperties.resize(numInstanceExtensions);
+		vkEnumerateInstanceExtensionProperties(nullptr, &numInstanceExtensions, instanceExtensionProperties.data());
+	}
+
+	return instanceExtensionProperties;
+}
+
 VkPhysicalDeviceFeatures getRequiredDeviceFeatures(VkPhysicalDevice& physicalDevice)
 {
 	VkPhysicalDeviceFeatures supportedFeatures;
@@ -102,6 +134,9 @@ VkDevice createLogicalDevice(VkPhysicalDevice& physicalDevice)
 	
 	std::vector<VkQueueFamilyProperties> queueFamilyProperties =  getQueueFamilyProperties(physicalDevice);
 	VkPhysicalDeviceFeatures requiredFeatures = getRequiredDeviceFeatures(physicalDevice);
+
+	std::vector<VkLayerProperties> layerProperties = getLayerProperties();
+	std::vector<VkExtensionProperties> extensionProperties = getExtensionProperties();
 
 	VkDevice logicalDevice;
 	const VkDeviceQueueCreateInfo deviceQueueInfo
