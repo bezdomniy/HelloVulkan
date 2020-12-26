@@ -15,6 +15,10 @@ std::vector<const char*> VulkanInstance::getRequiredExtensions() {
 }
 
 VulkanInstance::VulkanInstance() {
+
+}
+
+void VulkanInstance::init() {
     if (enableValidationLayers && !checkValidationLayerSupport()) {
         throw std::runtime_error("validation layers requested, but not available!");
     }
@@ -51,10 +55,27 @@ VulkanInstance::VulkanInstance() {
     if (vkCreateInstance(&createInfo, nullptr, &vkInstance) != VK_SUCCESS) {
         throw std::runtime_error("failed to create instance!");
     }
+
+    setupDebugMessenger();
+}
+
+void VulkanInstance::setupDebugMessenger() {
+    if (!enableValidationLayers) return;
+
+    VkDebugUtilsMessengerCreateInfoEXT createInfo;
+    populateDebugMessengerCreateInfo(createInfo);
+
+    if (CreateDebugUtilsMessengerEXT(vkInstance, &createInfo, nullptr, &debugMessenger) != VK_SUCCESS) {
+        throw std::runtime_error("failed to set up debug messenger!");
+    }
 }
 
 VulkanInstance::~VulkanInstance() {
-    
+    if (enableValidationLayers) {
+        DestroyDebugUtilsMessengerEXT(vkInstance, debugMessenger, nullptr);
+    }
+
+    vkDestroyInstance(vkInstance, nullptr);
 }
 
 VkInstance& VulkanInstance::get() {

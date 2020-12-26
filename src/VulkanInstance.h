@@ -5,10 +5,14 @@
 
 #include "Validation.h"
 
+extern const bool enableValidationLayers;
+
 class VulkanInstance {
 public:
     VulkanInstance();
     ~VulkanInstance();
+
+    void init();
 
     VulkanInstance(const VulkanInstance&) = delete;
     VulkanInstance(VulkanInstance&&) = delete;
@@ -18,6 +22,8 @@ public:
     VkInstance& get();
 private:
     VkInstance vkInstance = VK_NULL_HANDLE;
+    VkDebugUtilsMessengerEXT debugMessenger;
     std::vector<const char*> getRequiredExtensions();
+    void setupDebugMessenger();
     
 };
