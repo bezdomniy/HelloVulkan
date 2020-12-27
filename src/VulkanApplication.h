@@ -3,6 +3,7 @@
 #include <vulkan/vulkan.h>
 
 #include "VulkanInstance.h"
+#include "VulkanDevice.h"
 
 #include "lodepng.h"
 
@@ -37,16 +38,16 @@ const std::vector<const char*> validationLayers = {
 //     float r, g, b, a;
 // };
 
-const std::vector<const char*> deviceExtensions = {
-};
+// const std::vector<const char*> deviceExtensions = {
+// };
 
-struct QueueFamilyIndices {
-    std::optional<uint32_t> computeFamily;
+// struct QueueFamilyIndices {
+//     std::optional<uint32_t> computeFamily;
 
-    bool isComplete() {
-        return computeFamily.has_value();
-    }
-};
+//     bool isComplete() {
+//         return computeFamily.has_value();
+//     }
+// };
 
 class VulkanApplication {
 public:
@@ -60,11 +61,13 @@ private:
     // VkDebugUtilsMessengerEXT debugMessenger;
     // VkSurfaceKHR surface;
 
-    VkPhysicalDevice physicalDevice = VK_NULL_HANDLE; 
-    VkDevice device;
+    // VkPhysicalDevice physicalDevice = VK_NULL_HANDLE; 
+    // VkDevice device;
+    VulkanDevice device;
+
 
     // VkQueue graphicsQueue;
-    VkQueue computeQueue;
+    // VkQueue computeQueue;
 
     VkDescriptorPool descriptorPool;
     VkDescriptorSet descriptorSet;
@@ -86,16 +89,16 @@ private:
     void mainLoop();
     void cleanup();
     void recreatePipeline();
-    void createInstance();
-    void setupDebugMessenger();
-    void pickPhysicalDevice();
-    void createLogicalDevice();
+    // void createInstance();
+    // void setupDebugMessenger();
+    // void pickPhysicalDevice();
+    // void createLogicalDevice();
     void createPipeline();
     void createCommandPool();
     void createCommandBuffers();
 
     VkShaderModule createShaderModule(const std::vector<char>& code);
-    bool isDeviceSuitable(VkPhysicalDevice device);
+    // bool isDeviceSuitable(VkPhysicalDevice device);
 
     uint32_t findMemoryType(uint32_t memoryTypeBits, VkMemoryPropertyFlags properties);
     void createBuffer();
@@ -106,8 +109,8 @@ private:
 
     void saveRenderedImage();
 
-    bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-    QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
-    std::vector<const char*> getRequiredExtensions();
+    // bool checkDeviceExtensionSupport(VkPhysicalDevice device);
+    // QueueFamilyIndices findQueueFamilies(VkPhysicalDevice device);
+    // std::vector<const char*> getRequiredExtensions();
     static std::vector<char> readFile(const std::string& filename);
     };

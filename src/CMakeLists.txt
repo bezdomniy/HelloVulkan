@@ -27,6 +27,7 @@ add_executable (HelloVulkan ${SOURCES})
 find_package(glfw3 CONFIG REQUIRED)
 find_package(glm CONFIG REQUIRED)
 find_package(Vulkan REQUIRED)
+
 # find_package(Vulkan REQUIRED EXACT REQUIRED PATHS )
 
 message("Vulkan found? " ${VULKAN_FOUND})

@@ -4,8 +4,9 @@ void VulkanApplication::initVulkan() {
     // createInstance();
     instance.init();
     // setupDebugMessenger();
-    pickPhysicalDevice();
-    createLogicalDevice();
+    // pickPhysicalDevice();
+    // createLogicalDevice();
+    device.init(instance.get());
     createBuffer();
     createDescriptorSetLayout();
     createDescriptorSet();
@@ -17,22 +18,18 @@ void VulkanApplication::initVulkan() {
 
 void VulkanApplication::mainLoop() {
     runCommandBuffer();
-    vkDeviceWaitIdle(device);
+    vkDeviceWaitIdle(device.getLogical());
 
     saveRenderedImage();
 }
 
 
 void VulkanApplication::cleanup() {
-    vkDestroyCommandPool(device, commandPool, nullptr);
-
-    vkDestroyDevice(device, nullptr);
-
-
+    vkDestroyCommandPool(device.getLogical(), commandPool, nullptr);
 }
 
 void VulkanApplication::recreatePipeline() {
-    vkDeviceWaitIdle(device);
+    vkDeviceWaitIdle(device.getLogical());
 
     createPipeline();
     createCommandBuffers();
@@ -50,71 +47,71 @@ void VulkanApplication::recreatePipeline() {
 //     }
 // }
 
-void VulkanApplication::pickPhysicalDevice() {
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(instance.get(), &deviceCount, nullptr);
+// void VulkanApplication::pickPhysicalDevice() {
+//     uint32_t deviceCount = 0;
+//     vkEnumeratePhysicalDevices(instance.get(), &deviceCount, nullptr);
 
-    if (deviceCount == 0) {
-        throw std::runtime_error("failed to find GPUs with Vulkan support!");
-    }
+//     if (deviceCount == 0) {
+//         throw std::runtime_error("failed to find GPUs with Vulkan support!");
+//     }
 
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(instance.get(), &deviceCount, devices.data());
+//     std::vector<VkPhysicalDevice> devices(deviceCount);
+//     vkEnumeratePhysicalDevices(instance.get(), &deviceCount, devices.data());
 
-    for (const auto& device : devices) {
-        if (isDeviceSuitable(device)) {
-            physicalDevice = device;
-            break;
-        }
-    }
+//     for (const auto& device : devices) {
+//         if (isDeviceSuitable(device)) {
+//             physicalDevice = device;
+//             break;
+//         }
+//     }
 
-    if (physicalDevice == VK_NULL_HANDLE) {
-        throw std::runtime_error("failed to find a suitable GPU!");
-    }
-}
+//     if (physicalDevice == VK_NULL_HANDLE) {
+//         throw std::runtime_error("failed to find a suitable GPU!");
+//     }
+// }
 
-void VulkanApplication::createLogicalDevice() {
-    QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
+// void VulkanApplication::createLogicalDevice() {
+//     QueueFamilyIndices indices = findQueueFamilies(physicalDevice);
 
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = {indices.computeFamily.value()};
+//     std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
+//     std::set<uint32_t> uniqueQueueFamilies = {indices.computeFamily.value()};
 
-    float queuePriority = 1.0f;
-    for (uint32_t queueFamily : uniqueQueueFamilies) {
-        VkDeviceQueueCreateInfo queueCreateInfo{};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = queueFamily;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-        queueCreateInfos.push_back(queueCreateInfo);
-    }
+//     float queuePriority = 1.0f;
+//     for (uint32_t queueFamily : uniqueQueueFamilies) {
+//         VkDeviceQueueCreateInfo queueCreateInfo{};
+//         queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
+//         queueCreateInfo.queueFamilyIndex = queueFamily;
+//         queueCreateInfo.queueCount = 1;
+//         queueCreateInfo.pQueuePriorities = &queuePriority;
+//         queueCreateInfos.push_back(queueCreateInfo);
+//     }
 
-    VkPhysicalDeviceFeatures deviceFeatures{};
+//     VkPhysicalDeviceFeatures deviceFeatures{};
 
-    VkDeviceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
+//     VkDeviceCreateInfo createInfo{};
+//     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
 
-    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-    createInfo.pQueueCreateInfos = queueCreateInfos.data();
+//     createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
+//     createInfo.pQueueCreateInfos = queueCreateInfos.data();
 
-    createInfo.pEnabledFeatures = &deviceFeatures;
+//     createInfo.pEnabledFeatures = &deviceFeatures;
 
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
+//     createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
+//     createInfo.ppEnabledExtensionNames = deviceExtensions.data();
 
-    if (enableValidationLayers) {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames = validationLayers.data();
-    } else {
-        createInfo.enabledLayerCount = 0;
-    }
+//     if (enableValidationLayers) {
+//         createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+//         createInfo.ppEnabledLayerNames = validationLayers.data();
+//     } else {
+//         createInfo.enabledLayerCount = 0;
+//     }
 
-    if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
-        throw std::runtime_error("failed to create logical device!");
-    }
+//     if (vkCreateDevice(physicalDevice, &createInfo, nullptr, &device) != VK_SUCCESS) {
+//         throw std::runtime_error("failed to create logical device!");
+//     }
 
-    vkGetDeviceQueue(device, indices.computeFamily.value(), 0, &computeQueue);
-}
+//     vkGetDeviceQueue(device, indices.computeFamily.value(), 0, &computeQueue);
+// }
 
 
 void VulkanApplication::createPipeline() {
@@ -133,7 +130,7 @@ void VulkanApplication::createPipeline() {
     pipelineLayoutCreateInfo.sType = VK_STRUCTURE_TYPE_PIPELINE_LAYOUT_CREATE_INFO;
     pipelineLayoutCreateInfo.setLayoutCount = 1;
     pipelineLayoutCreateInfo.pSetLayouts = &descriptorSetLayout; 
-    vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, NULL, &pipelineLayout);
+    vkCreatePipelineLayout(device.getLogical(), &pipelineLayoutCreateInfo, NULL, &pipelineLayout);
 
     // VkPipelineInputAssemblyStateCreateInfo inputAssembly{};
     // inputAssembly.sType = VK_STRUCTURE_TYPE_PIPELINE_INPUT_ASSEMBLY_STATE_CREATE_INFO;
@@ -145,30 +142,30 @@ void VulkanApplication::createPipeline() {
     pipelineCreateInfo.stage = compShaderStageInfo;
     pipelineCreateInfo.layout = pipelineLayout;
 
-    if (vkCreatePipelineLayout(device, &pipelineLayoutCreateInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
+    if (vkCreatePipelineLayout(device.getLogical(), &pipelineLayoutCreateInfo, nullptr, &pipelineLayout) != VK_SUCCESS) {
         throw std::runtime_error("failed to create pipeline layout!");
     }
 
     vkCreateComputePipelines(
-            device, VK_NULL_HANDLE,
+            device.getLogical(), VK_NULL_HANDLE,
             1, &pipelineCreateInfo,
             NULL, &pipeline);
 
 
-    vkDestroyShaderModule(device, compShaderModule, nullptr);
+    vkDestroyShaderModule(device.getLogical(), compShaderModule, nullptr);
 }
 
 
 
 
 void VulkanApplication::createCommandPool() {
-    QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
+    // QueueFamilyIndices queueFamilyIndices = findQueueFamilies(physicalDevice);
 
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.queueFamilyIndex = queueFamilyIndices.computeFamily.value();
+    poolInfo.queueFamilyIndex = device.getQueueFamilyIndices().computeFamily.value();
 
-    if (vkCreateCommandPool(device, &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
+    if (vkCreateCommandPool(device.getLogical(), &poolInfo, nullptr, &commandPool) != VK_SUCCESS) {
         throw std::runtime_error("failed to create command pool!");
     }
 }
@@ -180,7 +177,7 @@ void VulkanApplication::createCommandBuffers() {
     allocInfo.level = VK_COMMAND_BUFFER_LEVEL_PRIMARY;
     allocInfo.commandBufferCount = 1;
 
-    if (vkAllocateCommandBuffers(device, &allocInfo, &commandBuffer) != VK_SUCCESS) {
+    if (vkAllocateCommandBuffers(device.getLogical(), &allocInfo, &commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to allocate command buffers!");
     }
 
@@ -213,7 +210,7 @@ VkShaderModule VulkanApplication::createShaderModule(const std::vector<char>& co
     createInfo.pCode = reinterpret_cast<const uint32_t*>(code.data());
 
     VkShaderModule shaderModule;
-    if (vkCreateShaderModule(device, &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
+    if (vkCreateShaderModule(device.getLogical(), &createInfo, nullptr, &shaderModule) != VK_SUCCESS) {
         throw std::runtime_error("failed to create shader module!");
     }
 
@@ -221,18 +218,18 @@ VkShaderModule VulkanApplication::createShaderModule(const std::vector<char>& co
 }
 
 
-bool VulkanApplication::isDeviceSuitable(VkPhysicalDevice device) {
-    QueueFamilyIndices indices = findQueueFamilies(device);
+// bool VulkanApplication::isDeviceSuitable(VkPhysicalDevice device) {
+//     QueueFamilyIndices indices = findQueueFamilies(device);
 
-    bool extensionsSupported = checkDeviceExtensionSupport(device);
+//     bool extensionsSupported = checkDeviceExtensionSupport(device);
 
-    return indices.isComplete() && extensionsSupported;
-}
+//     return indices.isComplete() && extensionsSupported;
+// }
 
 uint32_t VulkanApplication::findMemoryType(uint32_t memoryTypeBits, VkMemoryPropertyFlags properties) {
     VkPhysicalDeviceMemoryProperties memoryProperties;
 
-    vkGetPhysicalDeviceMemoryProperties(physicalDevice, &memoryProperties);
+    vkGetPhysicalDeviceMemoryProperties(device.getPhysical(), &memoryProperties);
 
     /*
     How does this search work?
@@ -258,7 +255,7 @@ void VulkanApplication::createBuffer() {
     bufferCreateInfo.usage = VK_BUFFER_USAGE_STORAGE_BUFFER_BIT; // buffer is used as a storage buffer.
     bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE; // buffer is exclusive to a single queue family at a time. 
 
-    vkCreateBuffer(device, &bufferCreateInfo, NULL, &buffer); // create buffer.
+    vkCreateBuffer(device.getLogical(), &bufferCreateInfo, NULL, &buffer); // create buffer.
 
     /*
     But the buffer doesn't allocate memory for itself, so we must do that manually.
@@ -268,7 +265,7 @@ void VulkanApplication::createBuffer() {
     First, we find the memory requirements for the buffer.
     */
     VkMemoryRequirements memoryRequirements;
-    vkGetBufferMemoryRequirements(device, buffer, &memoryRequirements);
+    vkGetBufferMemoryRequirements(device.getLogical(), buffer, &memoryRequirements);
     
     /*
     Now use obtained memory requirements info to allocate the memory for the buffer.
@@ -288,10 +285,10 @@ void VulkanApplication::createBuffer() {
     allocateInfo.memoryTypeIndex = findMemoryType(
         memoryRequirements.memoryTypeBits, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT);
 
-    vkAllocateMemory(device, &allocateInfo, NULL, &bufferMemory); // allocate memory on device.
+    vkAllocateMemory(device.getLogical(), &allocateInfo, NULL, &bufferMemory); // allocate memory on device.
     
     // Now associate that allocated memory with the buffer. With that, the buffer is backed by actual memory. 
-    vkBindBufferMemory(device, buffer, bufferMemory, 0);
+    vkBindBufferMemory(device.getLogical(), buffer, bufferMemory, 0);
 }
 
 void VulkanApplication::createDescriptorSetLayout() {
@@ -318,7 +315,7 @@ void VulkanApplication::createDescriptorSetLayout() {
     descriptorSetLayoutCreateInfo.pBindings = &descriptorSetLayoutBinding; 
 
     // Create the descriptor set layout. 
-    vkCreateDescriptorSetLayout(device, &descriptorSetLayoutCreateInfo, NULL, &descriptorSetLayout);
+    vkCreateDescriptorSetLayout(device.getLogical(), &descriptorSetLayoutCreateInfo, NULL, &descriptorSetLayout);
 }
 
 void VulkanApplication::createDescriptorSet() {
@@ -341,7 +338,7 @@ void VulkanApplication::createDescriptorSet() {
     descriptorPoolCreateInfo.pPoolSizes = &descriptorPoolSize;
 
     // create descriptor pool.
-    vkCreateDescriptorPool(device, &descriptorPoolCreateInfo, NULL, &descriptorPool);
+    vkCreateDescriptorPool(device.getLogical(), &descriptorPoolCreateInfo, NULL, &descriptorPool);
 
     /*
     With the pool allocated, we can now allocate the descriptor set. 
@@ -353,7 +350,7 @@ void VulkanApplication::createDescriptorSet() {
     descriptorSetAllocateInfo.pSetLayouts = &descriptorSetLayout;
 
     // allocate descriptor set.
-    vkAllocateDescriptorSets(device, &descriptorSetAllocateInfo, &descriptorSet);
+    vkAllocateDescriptorSets(device.getLogical(), &descriptorSetAllocateInfo, &descriptorSet);
 
     /*
     Next, we need to connect our actual storage buffer with the descrptor. 
@@ -375,7 +372,7 @@ void VulkanApplication::createDescriptorSet() {
     writeDescriptorSet.pBufferInfo = &descriptorBufferInfo;
 
     // perform the update of the descriptor set.
-    vkUpdateDescriptorSets(device, 1, &writeDescriptorSet, 0, NULL);
+    vkUpdateDescriptorSets(device.getLogical(), 1, &writeDescriptorSet, 0, NULL);
 }
 
 void VulkanApplication::runCommandBuffer() {
@@ -395,12 +392,12 @@ void VulkanApplication::runCommandBuffer() {
     VkFenceCreateInfo fenceCreateInfo = {};
     fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceCreateInfo.flags = 0;
-    vkCreateFence(device, &fenceCreateInfo, NULL, &fence);
+    vkCreateFence(device.getLogical(), &fenceCreateInfo, NULL, &fence);
 
     /*
     We submit the command buffer on the queue, at the same time giving a fence.
     */
-    vkQueueSubmit(computeQueue, 1, &submitInfo, fence);
+    vkQueueSubmit(device.getQueue(), 1, &submitInfo, fence);
     /*
     The command will not have finished executing until the fence is signalled.
     So we wait here.
@@ -408,51 +405,51 @@ void VulkanApplication::runCommandBuffer() {
     and we will not be sure that the command has finished executing unless we wait for the fence.
     Hence, we use a fence here.
     */
-    vkWaitForFences(device, 1, &fence, VK_TRUE, 100000000000);
+    vkWaitForFences(device.getLogical(), 1, &fence, VK_TRUE, 100000000000);
 
-    vkDestroyFence(device, fence, NULL);
+    vkDestroyFence(device.getLogical(), fence, NULL);
 }
 
-bool VulkanApplication::checkDeviceExtensionSupport(VkPhysicalDevice device) {
-    uint32_t extensionCount;
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
+// bool VulkanApplication::checkDeviceExtensionSupport(VkPhysicalDevice device) {
+//     uint32_t extensionCount;
+//     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
 
-    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
+//     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
+//     vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
-    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
+//     std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
 
-    for (const auto& extension : availableExtensions) {
-        requiredExtensions.erase(extension.extensionName);
-    }
+//     for (const auto& extension : availableExtensions) {
+//         requiredExtensions.erase(extension.extensionName);
+//     }
 
-    return requiredExtensions.empty();
-}
+//     return requiredExtensions.empty();
+// }
 
-QueueFamilyIndices VulkanApplication::findQueueFamilies(VkPhysicalDevice device) {
-    QueueFamilyIndices indices;
+// QueueFamilyIndices VulkanApplication::findQueueFamilies(VkPhysicalDevice device) {
+//     QueueFamilyIndices indices;
 
-    uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
+//     uint32_t queueFamilyCount = 0;
+//     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
+//     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
+//     vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
-    int i = 0;
-    for (const auto& queueFamily : queueFamilies) {
-        if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
-            indices.computeFamily = i;
-        }
+//     int i = 0;
+//     for (const auto& queueFamily : queueFamilies) {
+//         if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
+//             indices.computeFamily = i;
+//         }
 
-        if (indices.isComplete()) {
-            break;
-        }
+//         if (indices.isComplete()) {
+//             break;
+//         }
 
-        i++;
-    }
+//         i++;
+//     }
 
-    return indices;
-}
+//     return indices;
+// }
 
 std::vector<char> VulkanApplication::readFile(const std::string& filename) {
     std::ifstream file(filename, std::ios::ate | std::ios::binary);
@@ -475,7 +472,7 @@ std::vector<char> VulkanApplication::readFile(const std::string& filename) {
 void VulkanApplication::saveRenderedImage() {
     void* mappedMemory = NULL;
     // Map the buffer memory, so that we can read from it on the CPU.
-    vkMapMemory(device, bufferMemory, 0, bufferSize, 0, &mappedMemory);
+    vkMapMemory(device.getLogical(), bufferMemory, 0, bufferSize, 0, &mappedMemory);
     glm::vec4* pmappedMemory = (glm::vec4 *)mappedMemory;
 
     // Get the color data from the buffer, and cast it to bytes.
@@ -489,7 +486,7 @@ void VulkanApplication::saveRenderedImage() {
         image.push_back((unsigned char)(255.0f * (pmappedMemory[i].a)));
     }
     // Done reading, so unmap.
-    vkUnmapMemory(device, bufferMemory);
+    vkUnmapMemory(device.getLogical(), bufferMemory);
 
     // Now we save the acquired color data to a .png.
     unsigned error = lodepng::encode("mandelbrot.png", image, WIDTH, HEIGHT);
