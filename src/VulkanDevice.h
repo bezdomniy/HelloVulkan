@@ -43,9 +43,9 @@ private:
     QueueFamilyIndices indices;
     VkQueue computeQueue;
 
-    void findQueueFamilies();
-    bool isDeviceSuitable();
-    bool checkDeviceExtensionSupport();
+    void findQueueFamilies(VkPhysicalDevice device);
+    bool isDeviceSuitable(VkPhysicalDevice device);
+    bool checkDeviceExtensionSupport(VkPhysicalDevice device);
     void pickPhysicalDevice(VkInstance& vkInstance);
     void createLogicalDevice();
 };

@@ -5,8 +5,9 @@ VulkanDevice::VulkanDevice() {
 }
 
 void VulkanDevice::init(VkInstance& vkInstance) {
-    findQueueFamilies();
     pickPhysicalDevice(vkInstance);
+    
+    
     createLogicalDevice();
 }
 
@@ -14,12 +15,12 @@ VulkanDevice::~VulkanDevice() {
     vkDestroyDevice(vkDevice, nullptr);
 }
 
-void VulkanDevice::findQueueFamilies() {
+void VulkanDevice::findQueueFamilies(VkPhysicalDevice device) {
     uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(vkPhysicalDevice, &queueFamilyCount, nullptr);
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
 
     std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(vkPhysicalDevice, &queueFamilyCount, queueFamilies.data());
+    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
 
     int i = 0;
     for (const auto& queueFamily : queueFamilies) {
@@ -35,12 +36,12 @@ void VulkanDevice::findQueueFamilies() {
     }
 }
 
-bool VulkanDevice::checkDeviceExtensionSupport() {
+bool VulkanDevice::checkDeviceExtensionSupport(VkPhysicalDevice device) {
     uint32_t extensionCount;
-    vkEnumerateDeviceExtensionProperties(vkPhysicalDevice, nullptr, &extensionCount, nullptr);
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
 
     std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(vkPhysicalDevice, nullptr, &extensionCount, availableExtensions.data());
+    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
 
     std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
 
@@ -51,8 +52,9 @@ bool VulkanDevice::checkDeviceExtensionSupport() {
     return requiredExtensions.empty();
 }
 
-bool VulkanDevice::isDeviceSuitable() {
-    bool extensionsSupported = checkDeviceExtensionSupport();
+bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device) {
+    findQueueFamilies(device);
+    bool extensionsSupported = checkDeviceExtensionSupport(device);
 
     return indices.isComplete() && extensionsSupported;
 }
@@ -69,7 +71,7 @@ void VulkanDevice::pickPhysicalDevice(VkInstance& vkInstance) {
     vkEnumeratePhysicalDevices(vkInstance, &deviceCount, devices.data());
 
     for (const auto& device : devices) {
-        if (isDeviceSuitable()) {
+        if (isDeviceSuitable(device)) {
             vkPhysicalDevice = device;
             break;
         }
