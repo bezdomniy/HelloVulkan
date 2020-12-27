@@ -6,6 +6,9 @@
 #include <vector>
 
 #include <iostream>
+
+#include "VulkanBuffer.h"
+// #include <memory>
 // #include <fstream>
 // #include <stdexcept>
 // // #include <algorithm>
@@ -31,17 +34,20 @@ struct QueueFamilyIndices {
 class VulkanDevice {
 public:
     VulkanDevice();
-    virtual ~VulkanDevice();
+    ~VulkanDevice();
     void init(VkInstance& vkInstance);
+    uint32_t addBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data = nullptr);
     VkPhysicalDevice& getPhysical();
     VkDevice& getLogical();
     VkQueue& getQueue();
+    VulkanBuffer& getBuffer(uint32_t index);
     QueueFamilyIndices& getQueueFamilyIndices();
 private:
     VkPhysicalDevice vkPhysicalDevice = VK_NULL_HANDLE;
     VkDevice vkDevice = VK_NULL_HANDLE;
     QueueFamilyIndices indices;
     VkQueue computeQueue;
+    std::vector<VulkanBuffer> buffers;
 
     void findQueueFamilies(VkPhysicalDevice device);
     bool isDeviceSuitable(VkPhysicalDevice device);

@@ -11,3 +11,8 @@ CTestTestfile.cmake
 _deps
 /.vs
 /out/build
+/build
+/HelloVulkan.xcodeproj
+**/HelloVulkan.build/**
+*.spv
+**/Debug/**

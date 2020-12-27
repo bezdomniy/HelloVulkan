@@ -7,7 +7,6 @@ VulkanDevice::VulkanDevice() {
 void VulkanDevice::init(VkInstance& vkInstance) {
     pickPhysicalDevice(vkInstance);
     
-    
     createLogicalDevice();
 }
 
@@ -137,4 +136,15 @@ VkQueue& VulkanDevice::getQueue() {
 
 QueueFamilyIndices& VulkanDevice::getQueueFamilyIndices() {
     return indices;
+}
+
+uint32_t VulkanDevice::addBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data) {
+    buffers.push_back(VulkanBuffer());
+    buffers.back().init(this->vkPhysicalDevice, this->vkDevice, usageFlags, memoryPropertyFlags, size, data);
+
+    return buffers.size() - 1;
+}
+
+VulkanBuffer& VulkanDevice::getBuffer(uint32_t index) {
+    return buffers.at(index);
 }
