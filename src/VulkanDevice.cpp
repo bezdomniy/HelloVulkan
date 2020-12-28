@@ -4,7 +4,7 @@ VulkanDevice::VulkanDevice() {
     
 }
 
-void VulkanDevice::init(VkInstance& vkInstance) {
+void VulkanDevice::init(const VkInstance& vkInstance) {
     pickPhysicalDevice(vkInstance);
     
     createLogicalDevice();
@@ -58,7 +58,7 @@ bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device) {
     return indices.isComplete() && extensionsSupported;
 }
 
-void VulkanDevice::pickPhysicalDevice(VkInstance& vkInstance) {
+void VulkanDevice::pickPhysicalDevice(const VkInstance& vkInstance) {
     uint32_t deviceCount = 0;
     vkEnumeratePhysicalDevices(vkInstance, &deviceCount, nullptr);
 
@@ -147,4 +147,8 @@ uint32_t VulkanDevice::addBuffer(VkBufferUsageFlags usageFlags, VkMemoryProperty
 
 VulkanBuffer& VulkanDevice::getBuffer(uint32_t index) {
     return buffers.at(index);
+}
+
+std::vector<VulkanBuffer>& VulkanDevice::getBuffers() {
+    return buffers;
 }

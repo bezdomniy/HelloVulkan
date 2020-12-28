@@ -21,6 +21,7 @@ extern const bool enableValidationLayers;
 extern const std::vector<const char*> validationLayers;
 
 const std::vector<const char*> deviceExtensions = {
+//    "VK_KHR_ray_query"
 };
 
 struct QueueFamilyIndices {
@@ -35,13 +36,16 @@ class VulkanDevice {
 public:
     VulkanDevice();
     ~VulkanDevice();
-    void init(VkInstance& vkInstance);
+    void init(const VkInstance& vkInstance);
     uint32_t addBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data = nullptr);
     VkPhysicalDevice& getPhysical();
     VkDevice& getLogical();
     VkQueue& getQueue();
     VulkanBuffer& getBuffer(uint32_t index);
+    std::vector<VulkanBuffer>& getBuffers();
     QueueFamilyIndices& getQueueFamilyIndices();
+    
+//    TODO add implicit casting so this class returns logical device, instead of having to call getLogical
 private:
     VkPhysicalDevice vkPhysicalDevice = VK_NULL_HANDLE;
     VkDevice vkDevice = VK_NULL_HANDLE;
@@ -52,6 +56,6 @@ private:
     void findQueueFamilies(VkPhysicalDevice device);
     bool isDeviceSuitable(VkPhysicalDevice device);
     bool checkDeviceExtensionSupport(VkPhysicalDevice device);
-    void pickPhysicalDevice(VkInstance& vkInstance);
+    void pickPhysicalDevice(const VkInstance& vkInstance);
     void createLogicalDevice();
 };

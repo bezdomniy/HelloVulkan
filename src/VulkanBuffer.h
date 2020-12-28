@@ -12,7 +12,8 @@
 class VulkanBuffer {
 private:
     VkBuffer buffer;
-    VkDeviceMemory memory;  
+    VkDeviceMemory memory;
+    VkDescriptorBufferInfo descriptorBufferInfo;
     
 public:
     VulkanBuffer();
@@ -20,4 +21,5 @@ public:
     virtual ~VulkanBuffer();
     VkBuffer& getBuffer();
     VkDeviceMemory& getMemory();
+    VkDescriptorBufferInfo& getDescriptor();
 };

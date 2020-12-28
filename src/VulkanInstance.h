@@ -14,12 +14,14 @@ public:
 
     void init();
 
-    VulkanInstance(const VulkanInstance&) = delete;
-    VulkanInstance(VulkanInstance&&) = delete;
-    VulkanInstance& operator = (const VulkanInstance&) = delete;
-    VulkanInstance& operator = (VulkanInstance&&) = delete;
+//    VulkanInstance(const VulkanInstance&) = delete;
+//    VulkanInstance(VulkanInstance&&) = delete;
+//    VulkanInstance& operator = (const VulkanInstance&) = delete;
+//    VulkanInstance& operator = (VulkanInstance&&) = delete;
+    
+    operator VkInstance() const { return vkInstance; };
 
-    VkInstance& get();
+//    VkInstance& get();
 private:
     VkInstance vkInstance = VK_NULL_HANDLE;
     VkDebugUtilsMessengerEXT debugMessenger;

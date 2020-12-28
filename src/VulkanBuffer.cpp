@@ -58,6 +58,11 @@ void VulkanBuffer::init(VkPhysicalDevice physicalDevice, VkDevice device,VkBuffe
     }
 
     vkBindBufferMemory(device, buffer, memory, 0);
+    
+    descriptorBufferInfo = {};
+    descriptorBufferInfo.buffer = buffer;
+    descriptorBufferInfo.offset = 0;
+    descriptorBufferInfo.range = size;
 }
 
 VkBuffer& VulkanBuffer::getBuffer() {
@@ -66,4 +71,8 @@ VkBuffer& VulkanBuffer::getBuffer() {
 
 VkDeviceMemory& VulkanBuffer::getMemory() {
     return memory;
+}
+
+VkDescriptorBufferInfo& VulkanBuffer::getDescriptor() {
+    return descriptorBufferInfo;
 }
