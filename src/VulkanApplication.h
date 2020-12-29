@@ -50,14 +50,7 @@ private:
     VulkanInstance instance;
     VulkanDevice device;
     VulkanPipeline pipeline;
-
-//    VkDescriptorPool descriptorPool;
-//    VkDescriptorSet descriptorSet;
-//    VkDescriptorSetLayout descriptorSetLayout;
-//    
-//    VkPipelineLayout pipelineLayout;
-//    VkPipeline pipeline;
-
+    
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffer;
 
@@ -65,15 +58,8 @@ private:
     void initVulkan();
     void mainLoop();
     void cleanup();
-//    void recreatePipeline();
-//    void createPipeline();
     void createCommandPool();
     void createCommandBuffers();
-
-//    VkShaderModule createShaderModule(const std::vector<char>& code);
-//
-//    void createDescriptorSetLayout();
-//    void createDescriptorSet();
 
     void runCommandBuffer();
 

@@ -10,14 +10,14 @@
 #include <cstring>
 #include <cassert>
  
-VulkanBuffer::VulkanBuffer() {
+VulkanBuffer::VulkanBuffer(VkDevice& device, VkPhysicalDevice& physicalDevice) : device(device), physicalDevice(physicalDevice) {
 }
 
 VulkanBuffer::~VulkanBuffer() {
 
 }
 
-void VulkanBuffer::init(VkPhysicalDevice physicalDevice, VkDevice device,VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data) {
+void VulkanBuffer::init(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data) {
 
     // Create the buffer handle
     VkBufferCreateInfo bufferCreateInfo {};
@@ -63,6 +63,20 @@ void VulkanBuffer::init(VkPhysicalDevice physicalDevice, VkDevice device,VkBuffe
     descriptorBufferInfo.buffer = buffer;
     descriptorBufferInfo.offset = 0;
     descriptorBufferInfo.range = size;
+}
+
+VkResult VulkanBuffer::map(VkDeviceSize size, VkDeviceSize offset)
+{
+    return vkMapMemory(device, memory, offset, size, 0, &mapped);
+}
+
+void VulkanBuffer::unmap()
+{
+    if (mapped)
+    {
+        vkUnmapMemory(device, memory);
+        mapped = nullptr;
+    }
 }
 
 VkBuffer& VulkanBuffer::getBuffer() {

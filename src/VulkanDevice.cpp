@@ -139,8 +139,8 @@ QueueFamilyIndices& VulkanDevice::getQueueFamilyIndices() {
 }
 
 uint32_t VulkanDevice::addBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data) {
-    buffers.push_back(VulkanBuffer());
-    buffers.back().init(this->vkPhysicalDevice, this->vkDevice, usageFlags, memoryPropertyFlags, size, data);
+    buffers.push_back(VulkanBuffer(this->vkDevice, this->vkPhysicalDevice));
+    buffers.back().init(usageFlags, memoryPropertyFlags, size, data);
 
     return buffers.size() - 1;
 }
