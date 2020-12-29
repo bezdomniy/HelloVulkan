@@ -6,6 +6,8 @@
 #include "VulkanDevice.h"
 #include "VulkanPipeline.h"
 
+#include "Primitives.h"
+
 #include "lodepng.h"
 
 #include <glm/glm.hpp>
@@ -29,13 +31,7 @@ const std::vector<const char*> validationLayers = {
 
 struct UBOCompute {                            // Compute shader uniform block object
     glm::vec3 lightPos;
-    float aspectRatio;                        // Aspect ratio of the viewport
-    glm::vec4 fogColor = glm::vec4(0.0f);
-    struct {
-        glm::vec3 pos = glm::vec3(0.0f, 0.0f, 4.0f);
-        glm::vec3 lookat = glm::vec3(0.0f, 0.5f, 0.0f);
-        float fov = 10.0f;
-    } camera;
+    Primitives::Camera camera;
 } ubo;
 
 class VulkanApplication {
@@ -43,8 +39,11 @@ public:
     VulkanApplication();
     ~VulkanApplication();
     void run();
-    uint32_t inBufferSize;
+    uint32_t uniformBufferSize;
+    uint32_t shapesBufferSize;
     uint32_t outBufferSize;
+    
+    std::vector<Primitives::Shape> shapes;
 
 private:
     VulkanInstance instance;
@@ -66,6 +65,6 @@ private:
     void saveRenderedImage();
     
     void updateUniformBuffers();
+    void createShapes();
 
-    static std::vector<char> readFile(const std::string& filename);
     };

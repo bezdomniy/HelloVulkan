@@ -4,12 +4,19 @@ void VulkanApplication::initVulkan() {
     instance.init();
     device.init(instance);
     
+    
+    
 //    Output buffer
     device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, outBufferSize);
     
-    // Uniform buffer - camera
+    // Uniform buffer
     device.addBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, inBufferSize);
+    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBufferSize);
+    
+    createShapes();
+    device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT,
+                VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     shapesBufferSize, shapes.data());
     
     std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER};
     
@@ -61,8 +68,9 @@ void VulkanApplication::createCommandBuffers() {
         throw std::runtime_error("failed to begin recording command buffer!");
     }
 
-    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
+    
     vkCmdBindDescriptorSets(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline.getPipelineLayout(), 0, 1, &pipeline.getDescriptorSet(), 0, NULL);
+    vkCmdBindPipeline(commandBuffer, VK_PIPELINE_BIND_POINT_COMPUTE, pipeline);
 
     vkCmdDispatch(commandBuffer, (uint32_t)ceil(WIDTH / float(WORKGROUP_SIZE)), (uint32_t)ceil(HEIGHT / float(WORKGROUP_SIZE)), 1);
 
@@ -106,23 +114,6 @@ void VulkanApplication::runCommandBuffer() {
     vkDestroyFence(device.getLogical(), fence, nullptr);
 }
 
-std::vector<char> VulkanApplication::readFile(const std::string& filename) {
-    std::ifstream file(filename, std::ios::ate | std::ios::binary);
-
-    if (!file.is_open()) {
-        throw std::runtime_error("failed to open file!");
-    }
-
-    size_t fileSize = (size_t) file.tellg();
-    std::vector<char> buffer(fileSize);
-
-    file.seekg(0);
-    file.read(buffer.data(), fileSize);
-
-    file.close();
-
-    return buffer;
-}
 
 void VulkanApplication::saveRenderedImage() {
     void* mappedMemory = nullptr;
@@ -154,12 +145,24 @@ void VulkanApplication::updateUniformBuffers()
     ubo.lightPos.x = 0.0f + sin(glm::radians(timer * 360.0f)) * cos(glm::radians(timer * 360.0f)) * 2.0f;
     ubo.lightPos.y = 0.0f + sin(glm::radians(timer * 360.0f)) * 2.0f;
     ubo.lightPos.z = 0.0f + cos(glm::radians(timer * 360.0f)) * 2.0f;
-    ubo.camera.pos = glm::vec3(0.0f, 0.0f, -4.0f) * -1.0f;
+    
+    ubo.camera = Primitives::makeCamera(glm::vec4(0.f, 1.5f, -5.f, 1.f), glm::vec4(0.f,1.f,0.f,1.f), glm::vec4(0.f,1.f,0.f,0.f), 800, 600, 1.0472);
+    
     
     auto& uniformBuffer = device.getBuffer(1);
     uniformBuffer.map();
     memcpy(uniformBuffer.mapped, &ubo, sizeof(ubo));
     uniformBuffer.unmap();
+}
+
+void VulkanApplication::createShapes() {
+    Primitives::Material mat {glm::vec3(0.0f,0.0f, 0.5f)};
+    
+    glm::mat4 t(0.0f);
+    Primitives::Shape s = Primitives::makeSphere(mat, t);
+    
+    shapes.push_back(s);
+    shapesBufferSize = sizeof(Primitives::Shape) * shapes.size();
 }
 
 void VulkanApplication::run() {
@@ -179,6 +182,8 @@ int main() {
     VulkanApplication app;
 
     app.outBufferSize = sizeof(glm::vec4) * WIDTH * HEIGHT;
+    app.uniformBufferSize = sizeof(UBOCompute);
+//    app.uniformBufferSize = 0;
 
     try {
         app.run();
