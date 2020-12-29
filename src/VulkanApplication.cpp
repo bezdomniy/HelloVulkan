@@ -18,7 +18,7 @@ void VulkanApplication::initVulkan() {
                 VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      shapesBufferSize, shapes.data());
     
-    std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER};
+    std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
     
     pipeline.init(device.getBuffers(),bufferTypes,"../../src/shaders/comp.spv");
         
@@ -142,9 +142,13 @@ void VulkanApplication::saveRenderedImage() {
 void VulkanApplication::updateUniformBuffers()
 {
     float timer = 0.f;
-    ubo.lightPos.x = 0.0f + sin(glm::radians(timer * 360.0f)) * cos(glm::radians(timer * 360.0f)) * 2.0f;
-    ubo.lightPos.y = 0.0f + sin(glm::radians(timer * 360.0f)) * 2.0f;
-    ubo.lightPos.z = 0.0f + cos(glm::radians(timer * 360.0f)) * 2.0f;
+//    ubo.lightPos.x = 0.0f + sin(glm::radians(timer * 360.0f)) * cos(glm::radians(timer * 360.0f)) * 2.0f;
+//    ubo.lightPos.y = 0.0f + sin(glm::radians(timer * 360.0f)) * 2.0f;
+//    ubo.lightPos.z = 0.0f + cos(glm::radians(timer * 360.0f)) * 2.0f;
+    
+    ubo.lightPos.x = -10.0f ;
+    ubo.lightPos.y = 10.0f ;
+    ubo.lightPos.z = 0.0f ;
     
     ubo.camera = Primitives::makeCamera(glm::vec4(0.f, 1.5f, -5.f, 1.f), glm::vec4(0.f,1.f,0.f,1.f), glm::vec4(0.f,1.f,0.f,0.f), 800, 600, 1.0472);
     
@@ -158,7 +162,11 @@ void VulkanApplication::updateUniformBuffers()
 void VulkanApplication::createShapes() {
     Primitives::Material mat {glm::vec3(0.0f,0.0f, 0.5f)};
     
-    glm::mat4 t(0.0f);
+//    glm::mat4 t(1.0f);
+    glm::mat4 t =
+              glm::translate(glm::mat4(1.0), glm::vec3(-0.5f,1.f,0.5f));
+
+    
     Primitives::Shape s = Primitives::makeSphere(mat, t);
     
     shapes.push_back(s);
@@ -188,7 +196,7 @@ int main() {
     try {
         app.run();
     } catch (const std::exception& e) {
-        std::cerr << e.what() << std::endl;
+        std::cerr << "### " << e.what() << std::endl;
         return EXIT_FAILURE;
     }
 

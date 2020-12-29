@@ -66,6 +66,7 @@ Shape makeSphere(Material& material, glm::mat4& transform) {
     shape.id = getNextId();
     shape.typeEnum = 0;
     shape.inverseTransform = glm::affineInverse(transform);
+    shape.material = material;
     
     return shape;
 }
