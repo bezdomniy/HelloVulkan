@@ -11,7 +11,7 @@
 layout (local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;
 
 struct Pixel{
-  vec3 value;
+  vec4 value;
 };
 
 layout(std140, binding = 0) buffer buf
@@ -59,7 +59,7 @@ layout (std140, binding = 2) buffer Shapes
 	Shape shapes[ ];
 };
 
-void rayForPixel(in vec2 p, inout vec4 rayO, inout vec4 rayD) {
+void rayForPixel(in vec2 p, out vec4 rayO, out vec4 rayD) {
   float xOffset = (p.x + 0.5) * ubo.camera.pixelSize;
   float yOffset = (p.y + 0.5) * ubo.camera.pixelSize;
 
@@ -72,7 +72,7 @@ void rayForPixel(in vec2 p, inout vec4 rayO, inout vec4 rayD) {
   rayD = normalize(pixel - rayO);
 }
 
-void transformRay(in mat4 m, in vec4 rayO, in vec4 rayD, inout vec4 nRayO, inout vec4 nRayD) {
+void transformRay(in mat4 m, in vec4 rayO, in vec4 rayD, out vec4 nRayO, out vec4 nRayD) {
   nRayO = m * rayO;
   nRayD = m * rayD;
 }
@@ -167,8 +167,8 @@ vec3 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 		return color;
 	}
 	
-	vec4 pos = rayO + t * rayD;
-	vec4 lightVec = normalize(ubo.lightPos - pos);				
+	// vec4 pos = rayO + t * rayD;
+	// vec4 lightVec = normalize(ubo.lightPos - pos);				
 	// vec3 normal;
 
 	for (int i = 0; i < shapes.length(); i++)
@@ -215,15 +215,15 @@ void main() {
   if(gl_GlobalInvocationID.x >= WIDTH || gl_GlobalInvocationID.y >= HEIGHT)
     return;
 
-  vec4 rayO;
-  vec4 rayD;
+  vec4 rayO, rayD;
 
   rayForPixel(gl_GlobalInvocationID.xy, rayO, rayD);
 		
 	// Basic color path
 	int id = 0;
-	vec3 color = renderScene(rayO, rayD, id);
+	vec4 color = vec4(renderScene(rayO, rayD, id),1.0);
   
+  // vec4 color = vec4(1.0,0.0,0.0,1.0);
           
   // store the rendered mandelbrot set into a storage buffer:
   imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = color;
