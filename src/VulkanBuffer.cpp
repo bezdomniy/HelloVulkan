@@ -14,7 +14,19 @@ VulkanBuffer::VulkanBuffer(VkDevice& device, VkPhysicalDevice& physicalDevice) :
 }
 
 VulkanBuffer::~VulkanBuffer() {
+//    destroy();
+}
 
+void VulkanBuffer::destroy()
+{
+    if (buffer)
+    {
+        vkDestroyBuffer(device, buffer, nullptr);
+    }
+    if (memory)
+    {
+        vkFreeMemory(device, memory, nullptr);
+    }
 }
 
 void VulkanBuffer::init(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data) {
@@ -51,7 +63,7 @@ void VulkanBuffer::init(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags mem
     vkAllocateMemory(device, &memAlloc, nullptr, &memory);
 
     if (data != nullptr) {
-        void *mapped;
+//        void *mapped;
         vkMapMemory(device, memory, 0, size, 0, &mapped);
         memcpy(mapped, data, size);
         vkUnmapMemory(device, memory);

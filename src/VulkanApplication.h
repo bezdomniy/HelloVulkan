@@ -1,5 +1,7 @@
 #pragma once
 
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
+
 #include <vulkan/vulkan.h>
 
 #include "VulkanInstance.h"
@@ -19,6 +21,8 @@ const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 const uint32_t WORKGROUP_SIZE = 32;
 
+const uint64_t DEFAULT_FENCE_TIMEOUT = 100000000000;
+
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
 #else
@@ -31,7 +35,7 @@ const std::vector<const char*> validationLayers = {
 
 struct UBOCompute {                            // Compute shader uniform block object
     glm::vec3 lightPos;
-    Primitives::Camera camera;
+    alignas(16) Primitives::Camera camera;
 } ubo;
 
 class VulkanApplication {
@@ -58,9 +62,11 @@ private:
     void mainLoop();
     void cleanup();
     void createCommandPool();
-    void createCommandBuffers();
+    void createCommandBuffer(VkCommandBuffer &cmdBuffer);
+    void finaliseMainCommandBuffer();
+//    void flushCommandBuffer(VkCommandBuffer commandBuffer, bool free);
 
-    void runCommandBuffer();
+    void runCommandBuffer(VkCommandBuffer commandBuffer, bool end, bool free);
 
     void saveRenderedImage();
     

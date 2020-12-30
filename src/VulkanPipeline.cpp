@@ -21,15 +21,15 @@ void VulkanPipeline::init(std::vector<VulkanBuffer>& buffers, std::vector<VkDesc
 void VulkanPipeline::createDescriptorPool() {
     VkDescriptorPoolSize uniformDescriptorPoolSize = {};
     uniformDescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER;
-    uniformDescriptorPoolSize.descriptorCount = 2;
+    uniformDescriptorPoolSize.descriptorCount = 1;
     
     VkDescriptorPoolSize imageDescriptorPoolSize = {}; // For output image
-    imageDescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
+    imageDescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
     imageDescriptorPoolSize.descriptorCount = 1;
     
     VkDescriptorPoolSize primitivesDescriptorPoolSize = {}; // For buffers of shape primitives
     primitivesDescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    primitivesDescriptorPoolSize.descriptorCount = 2; // Number of primitive buffers here
+    primitivesDescriptorPoolSize.descriptorCount = 1; // Number of primitive buffers here
     
     std::vector<VkDescriptorPoolSize> poolSizes = {uniformDescriptorPoolSize,imageDescriptorPoolSize,primitivesDescriptorPoolSize};
 

@@ -37,7 +37,7 @@ public:
     VulkanDevice();
     ~VulkanDevice();
     void init(const VkInstance& vkInstance);
-    uint32_t addBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data = nullptr);
+    void addBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data = nullptr);
     VkPhysicalDevice& getPhysical();
     VkDevice& getLogical();
     VkQueue& getQueue();

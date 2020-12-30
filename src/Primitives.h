@@ -1,3 +1,4 @@
+#define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 #include <glm/glm.hpp>
 #include <glm/gtc/matrix_inverse.hpp>
 #include <glm/gtc/matrix_transform.hpp>
@@ -19,7 +20,7 @@ struct Material {
 
 struct Shape {
     glm::mat4 inverseTransform;
-    Material material;
+    alignas(16) Material material;
     uint32_t typeEnum;
     uint32_t id;
 };

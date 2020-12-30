@@ -23,6 +23,8 @@ public:
     void init(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data = nullptr);
     virtual ~VulkanBuffer();
     
+    void destroy();
+    
     VkResult map(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
     void unmap();
     
