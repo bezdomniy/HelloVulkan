@@ -21,13 +21,13 @@ struct Material {
 struct Shape {
     glm::mat4 inverseTransform;
     alignas(16) Material material;
-    uint32_t typeEnum;
-    uint32_t id;
+    alignas(8) uint32_t typeEnum;
+    alignas(8) uint32_t id;
 };
 
 struct Camera {
     glm::mat4 inverseTransform;
-    float pixelSize;
+     float pixelSize;
     float halfWidth;
     float halfHeight;
 };

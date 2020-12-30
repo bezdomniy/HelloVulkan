@@ -111,6 +111,7 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, inout vec3 color)
     
     float t = -1.0;
     if (shapes[i].typeEnum == 0) {
+      // color = vec3(0.0,1.0,0.0);
       t = sphereIntersect(nRayO, nRayD);
     }
     // else if (shapes[i].typeEnum == 1) {
