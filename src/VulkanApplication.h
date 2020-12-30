@@ -34,7 +34,7 @@ const std::vector<const char*> validationLayers = {
 };
 
 struct UBOCompute {                            // Compute shader uniform block object
-    glm::vec3 lightPos;
+    glm::vec4 lightPos;
     alignas(16) Primitives::Camera camera;
 } ubo;
 

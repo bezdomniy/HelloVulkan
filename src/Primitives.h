@@ -5,11 +5,11 @@
 
 namespace Primitives {
 struct Material {
-    glm::vec3 colour;
-//    float ambient;
-//    float diffuse;
-//    float specular;
-//    float shininess;
+    glm::vec4 colour;
+    float ambient;
+    float diffuse;
+    float specular;
+    float shininess;
 //    float reflective;
 //    float transparency;
 //    float refractiveIndex;
@@ -21,13 +21,13 @@ struct Material {
 struct Shape {
     glm::mat4 inverseTransform;
     alignas(16) Material material;
-    alignas(8) uint32_t typeEnum;
-    alignas(8) uint32_t id;
+    uint32_t typeEnum;
+    uint32_t id;
 };
 
 struct Camera {
     glm::mat4 inverseTransform;
-     float pixelSize;
+    float pixelSize;
     float halfWidth;
     float halfHeight;
 };
@@ -66,6 +66,16 @@ Shape makeSphere(Material& material, glm::mat4& transform) {
     Shape shape {};
     shape.id = getNextId();
     shape.typeEnum = 0;
+    shape.inverseTransform = glm::affineInverse(transform);
+    shape.material = material;
+    
+    return shape;
+}
+
+Shape makePlane(Material& material, glm::mat4& transform) {
+    Shape shape {};
+    shape.id = getNextId();
+    shape.typeEnum = 1;
     shape.inverseTransform = glm::affineInverse(transform);
     shape.material = material;
     

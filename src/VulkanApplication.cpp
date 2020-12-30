@@ -96,8 +96,6 @@ void VulkanApplication::finaliseMainCommandBuffer()
     if (vkEndCommandBuffer(commandBuffer) != VK_SUCCESS) {
         throw std::runtime_error("failed to record command buffer!");
     }
-    
-    
 }
 
 void VulkanApplication::runCommandBuffer(VkCommandBuffer cmdBuffer, bool end, bool free)
@@ -132,42 +130,6 @@ void VulkanApplication::runCommandBuffer(VkCommandBuffer cmdBuffer, bool end, bo
     }
 }
 
-//void VulkanApplication::runCommandBuffer() {
-//    /*
-//    Now we shall finally submit the recorded command buffer to a queue.
-//    */
-//
-//    VkSubmitInfo submitInfo = {};
-//    submitInfo.sType = VK_STRUCTURE_TYPE_SUBMIT_INFO;
-//    submitInfo.commandBufferCount = 1; // submit a single command buffer
-//    submitInfo.pCommandBuffers = &commandBuffer; // the command buffer to submit.
-//
-//    /*
-//        We create a fence.
-//    */
-//    VkFence fence;
-//    VkFenceCreateInfo fenceCreateInfo = {};
-//    fenceCreateInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
-//    fenceCreateInfo.flags = 0;
-//    vkCreateFence(device.getLogical(), &fenceCreateInfo, nullptr, &fence);
-//
-//    /*
-//    We submit the command buffer on the queue, at the same time giving a fence.
-//    */
-//    vkQueueSubmit(device.getQueue(), 1, &submitInfo, fence);
-//    /*
-//    The command will not have finished executing until the fence is signalled.
-//    So we wait here.
-//    We will directly after this read our buffer from the GPU,
-//    and we will not be sure that the command has finished executing unless we wait for the fence.
-//    Hence, we use a fence here.
-//    */
-//    vkWaitForFences(device.getLogical(), 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT);
-//
-//    vkDestroyFence(device.getLogical(), fence, nullptr);
-//}
-
-
 void VulkanApplication::saveRenderedImage() {
     void* mappedMemory = nullptr;
     // Map the buffer memory, so that we can read from it on the CPU.
@@ -199,16 +161,12 @@ void VulkanApplication::updateUniformBuffers()
 //    ubo.lightPos.y = 0.0f + sin(glm::radians(timer * 360.0f)) * 2.0f;
 //    ubo.lightPos.z = 0.0f + cos(glm::radians(timer * 360.0f)) * 2.0f;
     
-//    ubo.lightPos.x = -10.0f ;
-//    ubo.lightPos.y = 10.0f ;
-//    ubo.lightPos.z = 0.0f ;
+    ubo.lightPos.x = -10.0f ;
+    ubo.lightPos.y = 10.0f ;
+    ubo.lightPos.z = 0.0f ;
+    ubo.lightPos.w = 1.0f ; //TODO check if this is right - should it be 0?
     
-    ubo.lightPos.x = 0.0f ;
-ubo.lightPos.y = 1.0f ;
-ubo.lightPos.z = 0.0f ;
-//ubo.lightPos.w = 1.0f ;
-    
-    ubo.camera = Primitives::makeCamera(glm::vec4(0.f, 0.f, -5.f, 1.f), glm::vec4(0.f,0.f,0.f,1.f), glm::vec4(0.f,1.f,0.f,0.f), 800, 600, 1.0472);
+    ubo.camera = Primitives::makeCamera(glm::vec4(0.f, 1.5f, -5.f, 1.f), glm::vec4(0.f,1.f,0.f,1.f), glm::vec4(0.f,1.f,0.f,0.f), 800, 600, 1.0472);
     
     
     auto& uniformBuffer = device.getBuffer(1);
@@ -218,14 +176,18 @@ ubo.lightPos.z = 0.0f ;
 }
 
 void VulkanApplication::createShapes() {
-    Primitives::Material mat {glm::vec3(0.0f,0.0f, 0.5f)};
+    Primitives::Material mat {glm::vec4(0.537f, 0.831f, 0.914f,1.f),0.1f,0.7f,0.3f,200};
     
 //    glm::mat4 t(1.0f);
-    glm::mat4 t = glm::translate(glm::mat4(1.0), glm::vec3(0.f,0.f,0.f));
-
-    Primitives::Shape s = Primitives::makeSphere(mat, t);
+    glm::mat4 sT = glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 1.f, 0.5f));
+    Primitives::Shape s = Primitives::makeSphere(mat, sT);
+    
+    
+    glm::mat4 pT(1.0);
+    Primitives::Shape p = Primitives::makePlane(mat, pT);
     
     shapes.push_back(s);
+    shapes.push_back(p);
     shapesBufferSize = sizeof(Primitives::Shape) * shapes.size();
 }
 

@@ -28,11 +28,11 @@ struct Camera
 };
 
 struct Material {
-    vec3 colour;
-//     float ambient;
-//     float diffuse;
-//     float specular;
-//     float shininess;
+    vec4 colour;
+    float ambient;
+    float diffuse;
+    float specular;
+    float shininess;
 //     float reflective;
 //     float transparency;
 //     float refractiveIndex;
@@ -50,7 +50,7 @@ struct Shape {
 
 layout (binding = 1) uniform UBO 
 {
-	vec3 lightPos;
+	vec4 lightPos;
 	Camera camera;
 } ubo;
 
@@ -95,12 +95,16 @@ float sphereIntersect(in vec4 rayO, in vec4 rayD) {
     return t1;
   }
   return t2;
-
-  // intersections.push_back(Geometry::Intersection<Shape>{t1, this});
-  // intersections.push_back(Geometry::Intersection<Shape>{t2, this});
 }
 
-int intersect(in vec4 rayO, in vec4 rayD, inout float resT, inout vec3 color)
+float planeIntersect(in vec4 rayO, in vec4 rayD) {
+    if (abs(rayD.y) < EPSILON)
+        return -1.0;
+
+    return -rayO.y / rayD.y;
+}
+
+int intersect(in vec4 rayO, in vec4 rayD, inout float resT)
 {
 	int id = -1;
 
@@ -111,12 +115,11 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, inout vec3 color)
     
     float t = -1.0;
     if (shapes[i].typeEnum == 0) {
-      // color = vec3(0.0,1.0,0.0);
       t = sphereIntersect(nRayO, nRayD);
     }
-    // else if (shapes[i].typeEnum == 1) {
-    //   float t = planeIntersect(rayO, rayD);
-    // }
+    else if (shapes[i].typeEnum == 1) {
+      t = planeIntersect(rayO, rayD);
+    }
 		
 		if ((t > EPSILON) && (t < resT))
 		{
@@ -128,40 +131,146 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, inout vec3 color)
 	return id;
 }
 
-// Lighting =========================================================
-
-
-
-// float lightDiffuse(vec3 normal, vec3 lightDir) 
-// {
-// 	return clamp(dot(normal, lightDir), 0.1, 1.0);
-// }
-
-// float lightSpecular(vec3 normal, vec3 lightDir, float specularFactor)
-// {
-// 	vec3 viewVec = normalize(ubo.camera.pos);
-// 	vec3 halfVec = normalize(lightDir + viewVec);
-// 	return pow(clamp(dot(normal, halfVec), 0.0, 1.0), specularFactor);
-// }
-
-// vec3 normalAt(in vec3 rayO, in vec3 rayD, in int i) {
-//   vec3 n;
-//   if (shapes[i].typeEnum == 0) {
-//     n = sphereNormal(rayO, rayD, shapes[i]);
-//   }
-//   else if (shapes[i].typeEnum == 1) {
-//     n = planeNormal(rayO, rayD, shapes[i]);
-//   }
-//   return n;
-// }
-
-vec3 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
+vec4 normalToWorld(in vec4 normal, in Shape shape)
 {
-	vec3 color = vec3(0.0);
+  vec4 ret = transpose(shape.inverseTransform) * normal;
+  ret.w = 0.0;
+  ret = normalize(ret);
+
+  return ret;
+}
+
+vec4 normalAt(in vec4 point, in Shape shape) {
+  vec4 n = vec4(0.0);
+  vec4 objectPoint = shape.inverseTransform * point; // World to object
+
+  if (shape.typeEnum == 0) {
+    n = objectPoint - vec4(0.0, 0.0, 0.0, 1.0);
+  }
+  else if (shape.typeEnum == 1) {
+    n = vec4(0.0,1.0,0.0,0.0);
+  }
+  return normalToWorld(n, shape);
+}
+
+struct HitParams {
+  vec4 point;
+  vec4 normalv;
+  vec4 eyev;
+  vec4 reflectv;
+  vec4 overPoint;
+  vec4 underPoint;
+};
+
+HitParams getHitParams(in vec4 rayO, in vec4 rayD, in float t, in Shape shape)
+{
+  HitParams hitParams;
+  hitParams.point =
+      rayO + normalize(rayD) * t;
+  // TODO check that uv only null have using none-uv normalAt version
+  hitParams.normalv =
+      normalAt(hitParams.point, shape);
+  hitParams.eyev = -rayD;
+
+  if (dot(hitParams.normalv, hitParams.eyev) < 0)
+  {
+    // intersection.comps->inside = true;
+    hitParams.normalv = -hitParams.normalv;
+  }
+  // else
+  // {
+  //   intersection.comps->inside = false;
+  // }
+
+  hitParams.reflectv =
+      reflect(rayD, hitParams.normalv);
+  hitParams.overPoint =
+      hitParams.point + hitParams.normalv * EPSILON;
+  hitParams.underPoint =
+      hitParams.point - hitParams.normalv * EPSILON;
+
+  return hitParams;
+}
+
+bool isShadowed(in vec4 point, in vec4 lightPos)
+{
+  vec4 v = lightPos - point;
+  float distance = length(v);
+  vec4 direction = normalize(v);
+
+  // Ray ray = Ray(point, direction);
+  // std::vector<Geometry::Intersection<Shape>> intersections =
+  //     world.intersectRayShadow(ray);
+
+  // Geometry::Intersection<Shape> *hit = Geometry::hit<Shape>(intersections);
+  float t = MAXLEN;
+  int id = intersect(point, direction, t);
+
+  if ((id >= 0 && t < distance))
+  {
+    return true;
+  }
+
+  return false;
+}
+
+vec4 lighting(in Shape shape, in vec4 lightPos,
+                              in HitParams hitParams, in bool shadowed)
+{
+  vec4 diffuse;
+  vec4 specular;
+  vec4 effectiveColour;
+
+  vec4 intensity = vec4(1.0,1.0,1.0,1.0); // TODO temp placeholder
+
+  effectiveColour = intensity * shape.material.colour; //* light->intensity;
+
+  vec4 ambient = effectiveColour * shape.material.ambient;
+  if (shadowed) {
+    return ambient;
+  }
+
+  vec4 lightv = normalize(lightPos - hitParams.point);
+
+  float lightDotNormal = dot(lightv, hitParams.normalv);
+  if (lightDotNormal < 0)
+  {
+    diffuse = vec4(0.0, 0.0, 0.0,1.0);
+    specular = vec4(0.0, 0.0, 0.0,1.0);
+  }
+  else
+  {
+    // compute the diffuse contribution​
+    diffuse = effectiveColour * shape.material.diffuse * lightDotNormal;
+
+    // reflect_dot_eye represents the cosine of the angle between the
+    // reflection vector and the eye vector. A negative number means the
+    // light reflects away from the eye.​
+    vec4 reflectv = reflect(-lightv, hitParams.normalv);
+    float reflectDotEye = dot(reflectv, hitParams.eyev);
+
+    if (reflectDotEye <= 0)
+    {
+      specular = vec4(0.0, 0.0, 0.0,1.0);
+    }
+    else
+    {
+      // compute the specular contribution​
+      float factor = pow(reflectDotEye, shape.material.shininess);
+      specular = intensity * shape.material.specular * factor;
+    }
+  }
+
+  return (ambient + diffuse + specular);
+}
+
+vec4 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
+{
+	vec4 color = vec4(0.0);
 	float t = MAXLEN;
 
 	// Get intersected object ID
-	int objectID = intersect(rayO, rayD, t,color);
+	int objectID = intersect(rayO, rayD, t);
 	
 	if (objectID == -1)
 	{
@@ -176,15 +285,12 @@ vec3 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 	{
 		if (objectID == shapes[i].id)
 		{
-      // normal = normalAt();
+      HitParams hitParams = getHitParams(rayO, rayD, t, shapes[i]);
 
-			// normal = shapes[i].normal;
-			// float diffuse = lightDiffuse(normal, lightVec);
-			// float specular = lightSpecular(normal, lightVec, shapes[i].specular);
-			// color = diffuse * shapes[i].material.colour + specular;	
-
-      color = shapes[i].material.colour;
-      // color = vec3(1.0,0.0,0.0);
+      bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
+      color = lighting(shapes[i], ubo.lightPos,
+                              hitParams, shadowed);
+      // color = vec4(1.0,0.0,0.0,1.0);
 		}
 	}
 
@@ -232,7 +338,7 @@ void main() {
 		
 	// Basic color path
 	int id = 0;
-	vec4 color = vec4(renderScene(rayO, rayD, id),1.0);
+	vec4 color = renderScene(rayO, rayD, id);
 
           
   // store the rendered mandelbrot set into a storage buffer:
