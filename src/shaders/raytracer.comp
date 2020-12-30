@@ -50,7 +50,7 @@ struct Shape {
 
 layout (binding = 1) uniform UBO 
 {
-	vec4 lightPos;
+	vec3 lightPos;
 	Camera camera;
 } ubo;
 
@@ -82,14 +82,14 @@ float sphereIntersect(in vec4 rayO, in vec4 rayD) {
   float a = dot(rayD, rayD);
   float b = 2 * dot(rayD, sphereToRay);
   float c =
-      dot(sphereToRay, sphereToRay) - 1;
+      dot(sphereToRay, sphereToRay) - 1.0;
   float discriminant = b * b - 4 * a * c;
 
   if (discriminant < 0)
     return -1.0;
 
-  float t1 = (-b - sqrt(discriminant)) / (2 * a);
-  float t2 = (-b + sqrt(discriminant)) / (2 * a);
+  float t1 = (-b - sqrt(discriminant)) / (2.0 * a);
+  float t2 = (-b + sqrt(discriminant)) / (2.0 * a);
 
   if (t1 < t2) {
     return t1;
@@ -100,7 +100,7 @@ float sphereIntersect(in vec4 rayO, in vec4 rayD) {
   // intersections.push_back(Geometry::Intersection<Shape>{t2, this});
 }
 
-int intersect(in vec4 rayO, in vec4 rayD, inout float resT)
+int intersect(in vec4 rayO, in vec4 rayD, inout float resT, inout vec3 color)
 {
 	int id = -1;
 
@@ -160,7 +160,7 @@ vec3 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 	float t = MAXLEN;
 
 	// Get intersected object ID
-	int objectID = intersect(rayO, rayD, t);
+	int objectID = intersect(rayO, rayD, t,color);
 	
 	if (objectID == -1)
 	{
@@ -183,6 +183,7 @@ vec3 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 			// color = diffuse * shapes[i].material.colour + specular;	
 
       color = shapes[i].material.colour;
+      // color = vec3(1.0,0.0,0.0);
 		}
 	}
 
@@ -215,6 +216,15 @@ void main() {
   if(gl_GlobalInvocationID.x >= WIDTH || gl_GlobalInvocationID.y >= HEIGHT)
     return;
 
+  // if (shapes.length() < 1) {
+  // // if (ubo.camera.halfHeight > 0.0) {
+  //   imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = vec4(1.0,0.0,0.0,1.0);
+  //   return;
+  // }
+
+  // imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = vec4(ubo.lightPos,1.0);
+  // return;
+
   vec4 rayO, rayD;
 
   rayForPixel(gl_GlobalInvocationID.xy, rayO, rayD);
@@ -222,8 +232,7 @@ void main() {
 	// Basic color path
 	int id = 0;
 	vec4 color = vec4(renderScene(rayO, rayD, id),1.0);
-  
-  // vec4 color = vec4(1.0,0.0,0.0,1.0);
+
           
   // store the rendered mandelbrot set into a storage buffer:
   imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = color;
