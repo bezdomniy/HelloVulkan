@@ -49,7 +49,7 @@ public:
     uint32_t outBufferSize;
     
     std::vector<Primitives::Shape> shapes;
-    Primitives::BVH* bvh;
+    Primitives::BVH* bvh = nullptr;
 
 private:
     VulkanInstance instance;

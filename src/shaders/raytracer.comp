@@ -42,7 +42,6 @@ struct Material {
 };
 
 struct Shape {
-  
   mat4 inverseTransform;
   Material material;
   vec4 data[6];
@@ -355,7 +354,7 @@ vec4 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 	}
 
   if (objectID < 0) {
-      HitParams hitParams = getHitParams(rayO, rayD, t, bvh.inverseTransform, 2, bvh.nodes[objectID * -6], bvh.nodes[(objectID * -6) + 1], bvh.nodes[(objectID * -6) + 2], uv);
+      HitParams hitParams = getHitParams(rayO, rayD, t, bvh.inverseTransform, 2, bvh.nodes[(objectID * -6) + 3], bvh.nodes[(objectID * -6) + 4], bvh.nodes[(objectID * -6) + 5], uv);
 
       bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
       color = lighting(bvh.material, ubo.lightPos,
@@ -364,8 +363,8 @@ vec4 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 
 
 
-	if (id == -1)
-		return color;
+	// if (id == -1)
+	// 	return color;
 
 	// id = objectID;
 

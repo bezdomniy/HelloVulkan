@@ -68,7 +68,8 @@ void VulkanApplication::mainLoop() {
 
 
 void VulkanApplication::cleanup() {
-    free(bvh);
+    if (bvh)
+        free(bvh);
     vkDestroyCommandPool(device.getLogical(), commandPool, nullptr);
 }
 
@@ -204,7 +205,7 @@ void VulkanApplication::createShapes() {
 //    shapes = Primitives::makeModel("../../assets/models/dragon.obj", mat, sT);
     bvh = Primitives::makeBVH("../../assets/models/dragon.obj", mat, sT, bvhBufferSize);
     
-    bvhBufferSize +=sizeof(*bvh);
+    bvhBufferSize +=sizeof(*bvh) + 16;
     
     glm::mat4 pT(1.0);
     Primitives::Shape p = Primitives::makePlane(mat, pT);

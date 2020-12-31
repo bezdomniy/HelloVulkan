@@ -232,13 +232,13 @@ BVH* makeBVH(std::string const &path, Material& material, glm::mat4& transform, 
         triangleParams.push_back(temp_normals[normalIndices[i + 2] - 1]);
     }
     
-    BVH* bvh = (BVH*)malloc(sizeof(glm::mat4) + sizeof(Material) + triangleParams.size() * sizeof(glm::vec4));
+    size = triangleParams.size() * sizeof(glm::vec4);
+    
+    BVH* bvh = (BVH*)malloc(sizeof(glm::mat4) + sizeof(Material) + size);
     
     bvh->inverseTransform =glm::affineInverse(transform);
     bvh->material = material;
-    memcpy(bvh->nodes, triangleParams.data(), triangleParams.size() * sizeof(glm::vec4));
-    
-    size = triangleParams.size() * sizeof(glm::vec4);
+    memcpy(bvh->nodes, triangleParams.data(), size);
     
     return bvh;
 }
