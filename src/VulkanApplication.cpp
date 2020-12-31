@@ -179,14 +179,17 @@ void VulkanApplication::createShapes() {
     Primitives::Material mat {glm::vec4(0.537f, 0.831f, 0.914f,1.f),0.1f,0.7f,0.3f,200};
     
 //    glm::mat4 t(1.0f);
-    glm::mat4 sT = glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 1.f, 0.5f));
-    Primitives::Shape s = Primitives::makeSphere(mat, sT);
+    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.6,0.6,0.6));
+    glm::mat4 translate =  glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 0.2f, 0.5f));
+    glm::mat4 sT = translate * scale;
+//    Primitives::Shape s = Primitives::makeSphere(mat, sT);
+    shapes = Primitives::makeModel("../../assets/models/dragon.obj", mat, sT);
     
     
     glm::mat4 pT(1.0);
     Primitives::Shape p = Primitives::makePlane(mat, pT);
     
-    shapes.push_back(s);
+//    shapes.push_back(s);
     shapes.push_back(p);
     shapesBufferSize = sizeof(Primitives::Shape) * shapes.size();
 }

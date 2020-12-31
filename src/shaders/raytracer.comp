@@ -42,8 +42,10 @@ struct Material {
 };
 
 struct Shape {
+  
   mat4 inverseTransform;
   Material material;
+  vec4 data[6];
   int typeEnum;
   int id;
 };
@@ -104,7 +106,31 @@ float planeIntersect(in vec4 rayO, in vec4 rayD) {
     return -rayO.y / rayD.y;
 }
 
-int intersect(in vec4 rayO, in vec4 rayD, inout float resT)
+float triangleIntersect(in vec4 rayO, in vec4 rayD,in vec4 p1,in vec4 p2,in vec4 p3, out vec2 uv) {
+    vec3 e1 = vec3(p2 - p1);
+    vec3 e2 = vec3(p3 - p1);
+
+    vec3 dirCrossE2 = cross(vec3(rayD), e2);
+    float det = dot(e1, dirCrossE2);
+    if (abs(det) < EPSILON) {
+        return -1.9;}
+
+    float f = 1.0 / det;
+    vec3 p1ToOrigin = vec3(rayO - p1);
+    uv.x = f * dot(p1ToOrigin, dirCrossE2);
+    if (uv.x < 0 || uv.x > 1) {
+      return -1.0;
+    }
+
+    vec3 originCrossE1 = cross(p1ToOrigin, e1);
+    uv.y = f * dot(vec3(rayD), originCrossE1);
+    if (uv.y < 0 || (uv.x + uv.y) > 1) {
+        return -1.0;
+    }
+    return f * dot(e2, originCrossE1);
+}
+
+int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
 {
 	int id = -1;
 
@@ -118,7 +144,10 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT)
       t = sphereIntersect(nRayO, nRayD);
     }
     else if (shapes[i].typeEnum == 1) {
-      t = planeIntersect(rayO, rayD);
+      t = planeIntersect(nRayO, nRayD);
+    }
+    else if (shapes[i].typeEnum == 2) {
+      t = triangleIntersect(nRayO, nRayD, shapes[i].data[0], shapes[i].data[1], shapes[i].data[2], uv);
     }
 		
 		if ((t > EPSILON) && (t < resT))
@@ -140,7 +169,7 @@ vec4 normalToWorld(in vec4 normal, in Shape shape)
   return ret;
 }
 
-vec4 normalAt(in vec4 point, in Shape shape) {
+vec4 normalAt(in vec4 point, in Shape shape, in vec2 uv) {
   vec4 n = vec4(0.0);
   vec4 objectPoint = shape.inverseTransform * point; // World to object
 
@@ -149,6 +178,10 @@ vec4 normalAt(in vec4 point, in Shape shape) {
   }
   else if (shape.typeEnum == 1) {
     n = vec4(0.0,1.0,0.0,0.0);
+  }
+  else if (shape.typeEnum == 2) {
+    n = shape.data[4] * uv.x + shape.data[5] * uv.y + shape.data[3] * (1.0 - uv.x - uv.y);
+    n.w = 0.0;
   }
   return normalToWorld(n, shape);
 }
@@ -162,14 +195,14 @@ struct HitParams {
   vec4 underPoint;
 };
 
-HitParams getHitParams(in vec4 rayO, in vec4 rayD, in float t, in Shape shape)
+HitParams getHitParams(in vec4 rayO, in vec4 rayD, in float t, in Shape shape, in vec2 uv)
 {
   HitParams hitParams;
   hitParams.point =
       rayO + normalize(rayD) * t;
   // TODO check that uv only null have using none-uv normalAt version
   hitParams.normalv =
-      normalAt(hitParams.point, shape);
+      normalAt(hitParams.point, shape, uv);
   hitParams.eyev = -rayD;
 
   if (dot(hitParams.normalv, hitParams.eyev) < 0)
@@ -204,7 +237,8 @@ bool isShadowed(in vec4 point, in vec4 lightPos)
 
   // Geometry::Intersection<Shape> *hit = Geometry::hit<Shape>(intersections);
   float t = MAXLEN;
-  int id = intersect(point, direction, t);
+  vec2 uv;
+  int id = intersect(point, direction, t, uv);
 
   if ((id >= 0 && t < distance))
   {
@@ -267,10 +301,11 @@ vec4 lighting(in Shape shape, in vec4 lightPos,
 vec4 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 {
 	vec4 color = vec4(0.0);
+  vec2 uv;
 	float t = MAXLEN;
 
 	// Get intersected object ID
-	int objectID = intersect(rayO, rayD, t);
+	int objectID = intersect(rayO, rayD, t, uv);
 	
 	if (objectID == -1)
 	{
@@ -285,7 +320,7 @@ vec4 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 	{
 		if (objectID == shapes[i].id)
 		{
-      HitParams hitParams = getHitParams(rayO, rayD, t, shapes[i]);
+      HitParams hitParams = getHitParams(rayO, rayD, t, shapes[i], uv);
 
       bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
       color = lighting(shapes[i], ubo.lightPos,
