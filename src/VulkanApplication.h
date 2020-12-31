@@ -45,9 +45,11 @@ public:
     void run();
     uint32_t uniformBufferSize;
     uint32_t shapesBufferSize;
+    uint32_t bvhBufferSize;
     uint32_t outBufferSize;
     
     std::vector<Primitives::Shape> shapes;
+    Primitives::BVH* bvh;
 
 private:
     VulkanInstance instance;

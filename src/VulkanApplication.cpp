@@ -17,7 +17,7 @@ void VulkanApplication::initVulkan() {
     device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
                      VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
                      shapesBufferSize);
-//
+
     device.addBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
                      VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
                      shapesBufferSize, shapes.data());
@@ -28,11 +28,28 @@ void VulkanApplication::initVulkan() {
     copyRegion.size = shapesBufferSize;
     vkCmdCopyBuffer(copyCmd, device.getBuffer(3).getBuffer(), device.getBuffer(2).getBuffer(), 1, &copyRegion);
     runCommandBuffer(copyCmd, true, true);
-
+    
     device.getBuffer(3).destroy();
     device.getBuffers().pop_back();
     
-    std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
+    
+    device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
+                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
+                     bvhBufferSize);
+
+    device.addBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
+                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
+                     bvhBufferSize, bvh);
+    
+    createCommandBuffer(copyCmd);
+    copyRegion.size = bvhBufferSize;
+    vkCmdCopyBuffer(copyCmd, device.getBuffer(4).getBuffer(), device.getBuffer(3).getBuffer(), 1, &copyRegion);
+    runCommandBuffer(copyCmd, true, true);
+
+    device.getBuffer(4).destroy();
+    device.getBuffers().pop_back();
+    
+    std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
     
     pipeline.init(device.getBuffers(),bufferTypes,"../../src/shaders/comp.spv");
     
@@ -51,6 +68,7 @@ void VulkanApplication::mainLoop() {
 
 
 void VulkanApplication::cleanup() {
+    free(bvh);
     vkDestroyCommandPool(device.getLogical(), commandPool, nullptr);
 }
 
@@ -183,8 +201,10 @@ void VulkanApplication::createShapes() {
     glm::mat4 translate =  glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 0.2f, 0.5f));
     glm::mat4 sT = translate * scale;
 //    Primitives::Shape s = Primitives::makeSphere(mat, sT);
-    shapes = Primitives::makeModel("../../assets/models/dragon.obj", mat, sT);
+//    shapes = Primitives::makeModel("../../assets/models/dragon.obj", mat, sT);
+    bvh = Primitives::makeBVH("../../assets/models/dragon.obj", mat, sT, bvhBufferSize);
     
+    bvhBufferSize +=sizeof(*bvh);
     
     glm::mat4 pT(1.0);
     Primitives::Shape p = Primitives::makePlane(mat, pT);
@@ -192,6 +212,7 @@ void VulkanApplication::createShapes() {
 //    shapes.push_back(s);
     shapes.push_back(p);
     shapesBufferSize = sizeof(Primitives::Shape) * shapes.size();
+//    bvhBufferSize = sizeof(*bvh) + 16; //TODO is this plus 16, and why is size so low
 }
 
 void VulkanApplication::run() {

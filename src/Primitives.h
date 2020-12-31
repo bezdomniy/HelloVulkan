@@ -33,6 +33,12 @@ struct Shape {
     uint32_t id;
 };
 
+struct BVH {
+    glm::mat4 inverseTransform;
+    alignas(16) Material material;
+    glm::vec4 nodes[];
+};
+
 struct Camera {
     glm::mat4 inverseTransform;
     float pixelSize;
@@ -108,13 +114,12 @@ Shape makeTriangle(std::vector<glm::vec4>& params, Material& material, glm::mat4
     return shape;
 }
 
-std::vector<Shape> makeModel(std::string const &path, Material& material, glm::mat4& transform)
-{
-    std::vector<unsigned int> vertexIndices, uvIndices, normalIndices;
-    std::vector<glm::vec4> temp_vertices;
-    // std::vector<glm::dvec2> temp_uvs;
-    std::vector<glm::vec4> temp_normals;
-
+void parseObjFile(std::string const &path, std::vector<unsigned int> &vertexIndices,
+                  //    std::vector<unsigned int> &uvIndices,
+                      std::vector<unsigned int> &normalIndices,
+                      std::vector<glm::vec4> &temp_vertices,
+                      // std::vector<glm::dvec2> &temp_uvs,
+                      std::vector<glm::vec4> &temp_normals) {
     std::string line;
 
     std::ifstream in(path, std::ios::in);
@@ -203,6 +208,51 @@ std::vector<Shape> makeModel(std::string const &path, Material& material, glm::m
             // temp_uvs.push_back(uv);
         }
     }
+}
+
+BVH* makeBVH(std::string const &path, Material& material, glm::mat4& transform, uint32_t& size) {
+    std::vector<unsigned int> vertexIndices;
+//    std::vector<unsigned int> uvIndices;
+    std::vector<unsigned int> normalIndices;
+    std::vector<glm::vec4> temp_vertices;
+    // std::vector<glm::dvec2> temp_uvs;
+    std::vector<glm::vec4> temp_normals;
+
+    parseObjFile(path, vertexIndices, normalIndices, temp_vertices, temp_normals);
+    
+    std::vector<glm::vec4> triangleParams;
+    triangleParams.reserve((vertexIndices.size() / 3) * 6);
+
+    for (unsigned int i = 0; i < vertexIndices.size(); i += 3) {
+        triangleParams.push_back(temp_vertices[vertexIndices[i] - 1]);
+        triangleParams.push_back(temp_vertices[vertexIndices[i + 1] - 1]);
+        triangleParams.push_back(temp_vertices[vertexIndices[i + 2] - 1]);
+        triangleParams.push_back(temp_normals[normalIndices[i] - 1]);
+        triangleParams.push_back(temp_normals[normalIndices[i + 1] - 1]);
+        triangleParams.push_back(temp_normals[normalIndices[i + 2] - 1]);
+    }
+    
+    BVH* bvh = (BVH*)malloc(sizeof(glm::mat4) + sizeof(Material) + triangleParams.size() * sizeof(glm::vec4));
+    
+    bvh->inverseTransform =glm::affineInverse(transform);
+    bvh->material = material;
+    memcpy(bvh->nodes, triangleParams.data(), triangleParams.size() * sizeof(glm::vec4));
+    
+    size = triangleParams.size() * sizeof(glm::vec4);
+    
+    return bvh;
+}
+
+std::vector<Shape> makeModel(std::string const &path, Material& material, glm::mat4& transform)
+{
+    std::vector<unsigned int> vertexIndices;
+//    std::vector<unsigned int> uvIndices;
+    std::vector<unsigned int> normalIndices;
+    std::vector<glm::vec4> temp_vertices;
+    // std::vector<glm::dvec2> temp_uvs;
+    std::vector<glm::vec4> temp_normals;
+
+    parseObjFile(path, vertexIndices, normalIndices, temp_vertices, temp_normals);
 
     std::vector<Shape> triangles;
     triangles.reserve(vertexIndices.size() / 3);

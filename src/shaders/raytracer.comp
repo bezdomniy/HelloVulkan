@@ -50,6 +50,12 @@ struct Shape {
   int id;
 };
 
+// struct BVH {
+//     mat4 inverseTransform;
+//     Material material;
+//     vec4 nodes[];
+// };
+
 layout (binding = 1) uniform UBO 
 {
 	vec4 lightPos;
@@ -60,6 +66,13 @@ layout (std140, binding = 2) buffer Shapes
 {
 	Shape shapes[ ];
 };
+
+layout (std140, binding = 3) buffer BVH
+{
+  mat4 inverseTransform;
+  Material material;
+  vec4 nodes[];
+} bvh;
 
 void rayForPixel(in vec2 p, out vec4 rayO, out vec4 rayD) {
   float xOffset = (p.x + 0.5) * ubo.camera.pixelSize;
@@ -156,34 +169,46 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
 			resT = t;
 		}
 	}	
-	
+
+  vec4 nRayO, nRayD;
+  transformRay(bvh.inverseTransform, rayO, rayD, nRayO, nRayD);
+  for (int i = 0; i < bvh.nodes.length(); i+=6) {
+    float t = -1.0;
+    t = triangleIntersect(nRayO, nRayD, bvh.nodes[i], bvh.nodes[i+1], bvh.nodes[i+2], uv);
+    if ((t > EPSILON) && (t < resT))
+    {
+      id = -(i/6); //TODO fix this hack, which is to differentiate with shapes. will fail at -1
+      resT = t;
+    }
+  }
+
 	return id;
 }
 
-vec4 normalToWorld(in vec4 normal, in Shape shape)
+vec4 normalToWorld(in vec4 normal, in mat4 inverseTransform)
 {
-  vec4 ret = transpose(shape.inverseTransform) * normal;
+  vec4 ret = transpose(inverseTransform) * normal;
   ret.w = 0.0;
   ret = normalize(ret);
 
   return ret;
 }
 
-vec4 normalAt(in vec4 point, in Shape shape, in vec2 uv) {
+vec4 normalAt(in vec4 point, in mat4 inverseTransform, in int typeEnum, in vec4 n1, in vec4 n2, in vec4 n3, in vec2 uv) {
   vec4 n = vec4(0.0);
-  vec4 objectPoint = shape.inverseTransform * point; // World to object
+  vec4 objectPoint = inverseTransform * point; // World to object
 
-  if (shape.typeEnum == 0) {
+  if (typeEnum == 0) {
     n = objectPoint - vec4(0.0, 0.0, 0.0, 1.0);
   }
-  else if (shape.typeEnum == 1) {
+  else if (typeEnum == 1) {
     n = vec4(0.0,1.0,0.0,0.0);
   }
-  else if (shape.typeEnum == 2) {
-    n = shape.data[4] * uv.x + shape.data[5] * uv.y + shape.data[3] * (1.0 - uv.x - uv.y);
+  else if (typeEnum == 2) {
+    n = n2 * uv.x + n3 * uv.y + n1 * (1.0 - uv.x - uv.y);
     n.w = 0.0;
   }
-  return normalToWorld(n, shape);
+  return normalToWorld(n, inverseTransform);
 }
 
 struct HitParams {
@@ -195,14 +220,14 @@ struct HitParams {
   vec4 underPoint;
 };
 
-HitParams getHitParams(in vec4 rayO, in vec4 rayD, in float t, in Shape shape, in vec2 uv)
+HitParams getHitParams(in vec4 rayO, in vec4 rayD, in float t, in mat4 inverseTransform, in int typeEnum, in vec4 n1, in vec4 n2, in vec4 n3, in vec2 uv)
 {
   HitParams hitParams;
   hitParams.point =
       rayO + normalize(rayD) * t;
   // TODO check that uv only null have using none-uv normalAt version
   hitParams.normalv =
-      normalAt(hitParams.point, shape, uv);
+      normalAt(hitParams.point, inverseTransform, typeEnum, n1,n2,n3, uv);
   hitParams.eyev = -rayD;
 
   if (dot(hitParams.normalv, hitParams.eyev) < 0)
@@ -248,7 +273,7 @@ bool isShadowed(in vec4 point, in vec4 lightPos)
   return false;
 }
 
-vec4 lighting(in Shape shape, in vec4 lightPos,
+vec4 lighting(in Material material, in vec4 lightPos,
                               in HitParams hitParams, in bool shadowed)
 {
   vec4 diffuse;
@@ -257,9 +282,9 @@ vec4 lighting(in Shape shape, in vec4 lightPos,
 
   vec4 intensity = vec4(1.0,1.0,1.0,1.0); // TODO temp placeholder
 
-  effectiveColour = intensity * shape.material.colour; //* light->intensity;
+  effectiveColour = intensity * material.colour; //* light->intensity;
 
-  vec4 ambient = effectiveColour * shape.material.ambient;
+  vec4 ambient = effectiveColour * material.ambient;
   if (shadowed) {
     return ambient;
   }
@@ -275,7 +300,7 @@ vec4 lighting(in Shape shape, in vec4 lightPos,
   else
   {
     // compute the diffuse contribution​
-    diffuse = effectiveColour * shape.material.diffuse * lightDotNormal;
+    diffuse = effectiveColour * material.diffuse * lightDotNormal;
 
     // reflect_dot_eye represents the cosine of the angle between the
     // reflection vector and the eye vector. A negative number means the
@@ -290,8 +315,8 @@ vec4 lighting(in Shape shape, in vec4 lightPos,
     else
     {
       // compute the specular contribution​
-      float factor = pow(reflectDotEye, shape.material.shininess);
-      specular = intensity * shape.material.specular * factor;
+      float factor = pow(reflectDotEye, material.shininess);
+      specular = intensity * material.specular * factor;
     }
   }
 
@@ -320,14 +345,24 @@ vec4 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 	{
 		if (objectID == shapes[i].id)
 		{
-      HitParams hitParams = getHitParams(rayO, rayD, t, shapes[i], uv);
+      HitParams hitParams = getHitParams(rayO, rayD, t, shapes[i].inverseTransform, shapes[i].typeEnum, shapes[i].data[3], shapes[i].data[4], shapes[i].data[5], uv);
 
       bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
-      color = lighting(shapes[i], ubo.lightPos,
+      color = lighting(shapes[i].material, ubo.lightPos,
                               hitParams, shadowed);
       // color = vec4(1.0,0.0,0.0,1.0);
 		}
 	}
+
+  if (objectID < 0) {
+      HitParams hitParams = getHitParams(rayO, rayD, t, bvh.inverseTransform, 2, bvh.nodes[objectID * -6], bvh.nodes[(objectID * -6) + 1], bvh.nodes[(objectID * -6) + 2], uv);
+
+      bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
+      color = lighting(bvh.material, ubo.lightPos,
+                              hitParams, shadowed);
+  }
+
+
 
 	if (id == -1)
 		return color;
