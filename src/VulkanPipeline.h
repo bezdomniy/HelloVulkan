@@ -30,6 +30,7 @@ private:
 public:
     VulkanPipeline(VkDevice& parentDevice);
     ~VulkanPipeline();
+    void destroy();
     operator VkPipeline() const { return pipeline; };
     void init(std::vector<VulkanBuffer>& buffers, std::vector<VkDescriptorType>& types, const std::string& shaderPath);
     

@@ -5,7 +5,17 @@ VulkanPipeline::VulkanPipeline(VkDevice& device) : device(device) {
 }
 
 VulkanPipeline::~VulkanPipeline() {
+
+}
+
+void VulkanPipeline::destroy() {
+    vkDestroyDescriptorPool(device, descriptorPool, nullptr);
+    vkDestroyShaderModule(device, shaderModule, nullptr);
+    vkDestroyPipelineCache(device, pipelineCache, nullptr);
     
+    vkDestroyPipeline(device, pipeline, nullptr);
+    vkDestroyPipelineLayout(device, pipelineLayout, nullptr);
+    vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 }
 
 void VulkanPipeline::init(std::vector<VulkanBuffer>& buffers, std::vector<VkDescriptorType>& types, const std::string& shaderPath) {
@@ -29,13 +39,13 @@ void VulkanPipeline::createDescriptorPool() {
     
     VkDescriptorPoolSize primitivesDescriptorPoolSize = {}; // For buffers of shape primitives
     primitivesDescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
-    primitivesDescriptorPoolSize.descriptorCount = 1; // Number of primitive buffers here
+    primitivesDescriptorPoolSize.descriptorCount = 2; // Number of primitive buffers here
     
     std::vector<VkDescriptorPoolSize> poolSizes = {uniformDescriptorPoolSize,imageDescriptorPoolSize,primitivesDescriptorPoolSize};
 
     VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
     descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    descriptorPoolCreateInfo.maxSets = 3;
+    descriptorPoolCreateInfo.maxSets = 4;
     descriptorPoolCreateInfo.poolSizeCount = poolSizes.size();
     descriptorPoolCreateInfo.pPoolSizes = poolSizes.data();
 

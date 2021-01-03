@@ -6,12 +6,13 @@ VulkanDevice::VulkanDevice() {
 
 void VulkanDevice::init(const VkInstance& vkInstance) {
     pickPhysicalDevice(vkInstance);
-    
     createLogicalDevice();
+    
+    buffers.reserve(5);
 }
 
 VulkanDevice::~VulkanDevice() {
-    vkDestroyDevice(vkDevice, nullptr);
+//    vkDestroyDevice(vkDevice, nullptr);
 }
 
 void VulkanDevice::findQueueFamilies(VkPhysicalDevice device) {
@@ -23,7 +24,7 @@ void VulkanDevice::findQueueFamilies(VkPhysicalDevice device) {
 
     int i = 0;
     for (const auto& queueFamily : queueFamilies) {
-        if (queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) {
+        if ((queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) && (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT)) {
             indices.computeFamily = i;
         }
 
@@ -54,8 +55,11 @@ bool VulkanDevice::checkDeviceExtensionSupport(VkPhysicalDevice device) {
 bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device) {
     findQueueFamilies(device);
     bool extensionsSupported = checkDeviceExtensionSupport(device);
+    
+    VkPhysicalDeviceFeatures supportedFeatures;
+    vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
 
-    return indices.isComplete() && extensionsSupported;
+    return indices.isComplete() && extensionsSupported && supportedFeatures.robustBufferAccess;
 }
 
 void VulkanDevice::pickPhysicalDevice(const VkInstance& vkInstance) {
@@ -96,6 +100,7 @@ void VulkanDevice::createLogicalDevice() {
     }
 
     VkPhysicalDeviceFeatures deviceFeatures{};
+    deviceFeatures.robustBufferAccess = VK_TRUE;
 
     VkDeviceCreateInfo createInfo{};
     createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
@@ -139,7 +144,7 @@ QueueFamilyIndices& VulkanDevice::getQueueFamilyIndices() {
 }
 
 void VulkanDevice::addBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data) {
-    buffers.push_back(VulkanBuffer(this->vkDevice, this->vkPhysicalDevice));
+    buffers.emplace_back(this->vkDevice, this->vkPhysicalDevice);
     buffers.back().init(usageFlags, memoryPropertyFlags, size, data);
 
 //    return buffers.size() - 1;

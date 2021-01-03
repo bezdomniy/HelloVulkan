@@ -75,7 +75,7 @@ VulkanInstance::~VulkanInstance() {
         DestroyDebugUtilsMessengerEXT(vkInstance, debugMessenger, nullptr);
     }
 
-    vkDestroyInstance(vkInstance, nullptr);
+//    vkDestroyInstance(vkInstance, nullptr);
 }
 
 //VkInstance& VulkanInstance::get() {

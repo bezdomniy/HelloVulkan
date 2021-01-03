@@ -48,6 +48,7 @@ public:
 //    TODO add implicit casting so this class returns logical device, instead of having to call getLogical
 private:
     VkPhysicalDevice vkPhysicalDevice = VK_NULL_HANDLE;
+//    VkPhysicalDeviceFeatures deviceFeatures;
     VkDevice vkDevice = VK_NULL_HANDLE;
     QueueFamilyIndices indices;
     VkQueue computeQueue;

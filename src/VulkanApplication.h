@@ -65,6 +65,7 @@ private:
     void cleanup();
     void createCommandPool();
     void createCommandBuffer(VkCommandBuffer &cmdBuffer);
+    void destroyCommandBuffer(VkCommandBuffer &cmdBuffer, bool end);
     void finaliseMainCommandBuffer();
 //    void flushCommandBuffer(VkCommandBuffer commandBuffer, bool free);
 

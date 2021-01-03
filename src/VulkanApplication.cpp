@@ -4,23 +4,17 @@ void VulkanApplication::initVulkan() {
     instance.init();
     device.init(instance);
     createCommandPool();
-
     
 //    Output buffer
     device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, outBufferSize);
     
     // Uniform buffer
-    device.addBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT,
-    VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBufferSize);
+    device.addBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBufferSize);
     
     createShapes();
-    device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                     shapesBufferSize);
+    device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, shapesBufferSize);
 
-    device.addBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     shapesBufferSize, shapes.data());
+    device.addBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, shapesBufferSize, shapes.data());
     
     VkCommandBuffer copyCmd;
     createCommandBuffer(copyCmd);
@@ -33,13 +27,9 @@ void VulkanApplication::initVulkan() {
     device.getBuffers().pop_back();
     
     
-    device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,
-                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,
-                     bvhBufferSize);
+    device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT,                     VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT,                     bvhBufferSize);
 
-    device.addBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT,
-                     VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT,
-                     bvhBufferSize, bvh);
+    device.addBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, bvhBufferSize, bvh);
     
     createCommandBuffer(copyCmd);
     copyRegion.size = bvhBufferSize;
@@ -52,7 +42,6 @@ void VulkanApplication::initVulkan() {
     std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
     
     pipeline.init(device.getBuffers(),bufferTypes,"../../src/shaders/comp.spv");
-    
     
     createCommandBuffer(commandBuffer);
     finaliseMainCommandBuffer();
@@ -70,7 +59,17 @@ void VulkanApplication::mainLoop() {
 void VulkanApplication::cleanup() {
     if (bvh)
         free(bvh);
+    
+    for (auto& buf: device.getBuffers()) {
+        buf.destroy();
+    }
+    destroyCommandBuffer(commandBuffer, false);
     vkDestroyCommandPool(device.getLogical(), commandPool, nullptr);
+    
+    pipeline.destroy();
+    vkDestroyDevice(device.getLogical(), nullptr);
+    vkDestroyInstance(instance, nullptr);
+    
 }
 
 
@@ -85,8 +84,6 @@ void VulkanApplication::createCommandPool() {
 }
 
 void VulkanApplication::createCommandBuffer(VkCommandBuffer &cmdBuffer) {
-    ;
-    
     VkCommandBufferAllocateInfo allocInfo{};
     allocInfo.sType = VK_STRUCTURE_TYPE_COMMAND_BUFFER_ALLOCATE_INFO;
     allocInfo.commandPool = commandPool;
@@ -103,6 +100,15 @@ void VulkanApplication::createCommandBuffer(VkCommandBuffer &cmdBuffer) {
     if (vkBeginCommandBuffer(cmdBuffer, &beginInfo) != VK_SUCCESS) {
         throw std::runtime_error("failed to begin recording command buffer!");
     }
+}
+
+void VulkanApplication::destroyCommandBuffer(VkCommandBuffer &cmdBuffer, bool end) {
+    if (end)
+    {
+        vkEndCommandBuffer(cmdBuffer);
+    }
+    
+    vkFreeCommandBuffers(device.getLogical(), commandPool, 1, &cmdBuffer);
 }
 
 void VulkanApplication::finaliseMainCommandBuffer()
@@ -124,7 +130,8 @@ void VulkanApplication::runCommandBuffer(VkCommandBuffer cmdBuffer, bool end, bo
         return;
     }
 
-    if (end) {
+    if (end)
+    {
         vkEndCommandBuffer(cmdBuffer);
     }
         
@@ -137,11 +144,18 @@ void VulkanApplication::runCommandBuffer(VkCommandBuffer cmdBuffer, bool end, bo
     fenceInfo.sType = VK_STRUCTURE_TYPE_FENCE_CREATE_INFO;
     fenceInfo.flags = 0;
     VkFence fence;
-    vkCreateFence(device.getLogical(), &fenceInfo, nullptr, &fence);
+    
+    if(vkCreateFence(device.getLogical(), &fenceInfo, nullptr, &fence) != VK_SUCCESS) {
+        throw std::runtime_error("failed to create fence!");
+    }
     // Submit to the queue
-    vkQueueSubmit(device.getQueue(), 1, &submitInfo, fence);
+    if(vkQueueSubmit(device.getQueue(), 1, &submitInfo, fence)!= VK_SUCCESS) {
+        throw std::runtime_error("failed to submit command buffer to queue!");
+    }
     // Wait for the fence to signal that command buffer has finished executing
-    vkWaitForFences(device.getLogical(), 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT);
+    if(vkWaitForFences(device.getLogical(), 1, &fence, VK_TRUE, DEFAULT_FENCE_TIMEOUT)!= VK_SUCCESS) {
+        throw std::runtime_error("failed to wait for fence!");
+    }
     vkDestroyFence(device.getLogical(), fence, nullptr);
     if (free)
     {
@@ -199,11 +213,12 @@ void VulkanApplication::createShapes() {
     
 //    glm::mat4 t(1.0f);
     glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.6,0.6,0.6));
+//    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.003,0.003,0.003));
     glm::mat4 translate =  glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 0.2f, 0.5f));
     glm::mat4 sT = translate * scale;
 //    Primitives::Shape s = Primitives::makeSphere(mat, sT);
 //    shapes = Primitives::makeModel("../../assets/models/dragon.obj", mat, sT);
-    bvh = Primitives::makeBVH("../../assets/models/dragon.obj", mat, sT, bvhBufferSize);
+    bvh = Primitives::makeBVH("../../assets/models/lucy.obj", mat, sT, bvhBufferSize);
     
     bvhBufferSize +=sizeof(*bvh) + 16;
     

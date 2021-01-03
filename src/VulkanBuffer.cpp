@@ -60,16 +60,22 @@ void VulkanBuffer::init(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags mem
         memReqs.memoryTypeBits >>= 1;
     }
     assert(memTypeFound);
-    vkAllocateMemory(device, &memAlloc, nullptr, &memory);
+    if (vkAllocateMemory(device, &memAlloc, nullptr, &memory) != VK_SUCCESS) {
+        throw std::runtime_error("failed to allocate buffer memory!");
+    }
 
     if (data != nullptr) {
 //        void *mapped;
-        vkMapMemory(device, memory, 0, size, 0, &mapped);
+        if (vkMapMemory(device, memory, 0, size, 0, &mapped) != VK_SUCCESS) {
+            throw std::runtime_error("failed to map buffer memory!");
+        }
         memcpy(mapped, data, size);
         vkUnmapMemory(device, memory);
     }
 
-    vkBindBufferMemory(device, buffer, memory, 0);
+    if (vkBindBufferMemory(device, buffer, memory, 0) != VK_SUCCESS) {
+        throw std::runtime_error("failed to bind buffer memory!");
+    }
     
     descriptorBufferInfo = {};
     descriptorBufferInfo.buffer = buffer;

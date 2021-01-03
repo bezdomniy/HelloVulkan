@@ -6,7 +6,7 @@
 #define WORKGROUP_SIZE 32
 
 #define EPSILON 0.0001
-#define MAXLEN 1000.0
+#define MAXLEN 10000.0
 
 layout (local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;
 
@@ -125,7 +125,7 @@ float triangleIntersect(in vec4 rayO, in vec4 rayD,in vec4 p1,in vec4 p2,in vec4
     vec3 dirCrossE2 = cross(vec3(rayD), e2);
     float det = dot(e1, dirCrossE2);
     if (abs(det) < EPSILON) {
-        return -1.9;}
+        return -1.0;}
 
     float f = 1.0 / det;
     vec3 p1ToOrigin = vec3(rayO - p1);
@@ -145,13 +145,14 @@ float triangleIntersect(in vec4 rayO, in vec4 rayD,in vec4 p1,in vec4 p2,in vec4
 int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
 {
 	int id = -1;
+  vec4 nRayO, nRayD;
+  float t = -1.0;
 
 	for (int i = 0; i < shapes.length(); i++)
 	{
-    vec4 nRayO, nRayD;
+    // vec4 nRayO, nRayD;
     transformRay(shapes[i].inverseTransform, rayO, rayD, nRayO, nRayD);
     
-    float t = -1.0;
     if (shapes[i].typeEnum == 0) {
       t = sphereIntersect(nRayO, nRayD);
     }
@@ -168,11 +169,10 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
 			resT = t;
 		}
 	}	
-
-  vec4 nRayO, nRayD;
+  
   transformRay(bvh.inverseTransform, rayO, rayD, nRayO, nRayD);
   for (int i = 0; i < bvh.nodes.length(); i+=6) {
-    float t = -1.0;
+    // float t = -1.0;
     t = triangleIntersect(nRayO, nRayD, bvh.nodes[i], bvh.nodes[i+1], bvh.nodes[i+2], uv);
     if ((t > EPSILON) && (t < resT))
     {
@@ -264,7 +264,8 @@ bool isShadowed(in vec4 point, in vec4 lightPos)
   vec2 uv;
   int id = intersect(point, direction, t, uv);
 
-  if ((id >= 0 && t < distance))
+  // if ((id >= 0 && t < distance))
+  if (t < distance)
   {
     return true;
   }
@@ -272,9 +273,9 @@ bool isShadowed(in vec4 point, in vec4 lightPos)
   return false;
 }
 
-vec4 lighting(in Material material, in vec4 lightPos,
-                              in HitParams hitParams, in bool shadowed)
+vec4 lighting(in Material material, in vec4 lightPos, in HitParams hitParams, in bool shadowed)
 {
+  // return material.colour;
   vec4 diffuse;
   vec4 specular;
   vec4 effectiveColour;
@@ -322,7 +323,7 @@ vec4 lighting(in Material material, in vec4 lightPos,
   return (ambient + diffuse + specular);
 }
 
-vec4 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
+vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
 {
 	vec4 color = vec4(0.0);
   vec2 uv;
@@ -331,7 +332,7 @@ vec4 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 	// Get intersected object ID
 	int objectID = intersect(rayO, rayD, t, uv);
 	
-	if (objectID == -1)
+	if (t >= MAXLEN - EPSILON)
 	{
 		return color;
 	}
@@ -340,25 +341,28 @@ vec4 renderScene(inout vec4 rayO, inout vec4 rayD, inout int id)
 	// vec4 lightVec = normalize(ubo.lightPos - pos);				
 	// vec3 normal;
 
-	for (int i = 0; i < shapes.length(); i++)
-	{
-		if (objectID == shapes[i].id)
-		{
-      HitParams hitParams = getHitParams(rayO, rayD, t, shapes[i].inverseTransform, shapes[i].typeEnum, shapes[i].data[3], shapes[i].data[4], shapes[i].data[5], uv);
+  if (objectID >= 0) {
+    for (int i = 0; i < shapes.length(); i++)
+    {
+      if (objectID == shapes[i].id)
+      {
+        HitParams hitParams = getHitParams(rayO, rayD, t, shapes[i].inverseTransform, shapes[i].typeEnum, shapes[i].data[3], shapes[i].data[4], shapes[i].data[5], uv);
 
-      bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
-      color = lighting(shapes[i].material, ubo.lightPos,
-                              hitParams, shadowed);
-      // color = vec4(1.0,0.0,0.0,1.0);
-		}
-	}
+        bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
+        color = lighting(shapes[i].material, ubo.lightPos,
+                                hitParams, shadowed);
+        // color = vec4(0.0,1.0,0.0,1.0);
+      }
+    }
+  }
 
-  if (objectID < 0) {
+  else {
       HitParams hitParams = getHitParams(rayO, rayD, t, bvh.inverseTransform, 2, bvh.nodes[(objectID * -6) + 3], bvh.nodes[(objectID * -6) + 4], bvh.nodes[(objectID * -6) + 5], uv);
 
       bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
       color = lighting(bvh.material, ubo.lightPos,
                               hitParams, shadowed);
+      // color = vec4(1.0,0.0,0.0,1.0);
   }
 
 
@@ -408,6 +412,9 @@ void main() {
 	// Basic color path
 	int id = 0;
 	vec4 color = renderScene(rayO, rayD, id);
+
+
+  // color = vec4(1.0,0.0,0.0,1.0);
 
           
   // store the rendered mandelbrot set into a storage buffer:
