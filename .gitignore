@@ -16,3 +16,4 @@ _deps
 **/HelloVulkan.build/**
 *.spv
 **/Debug/**
+assets/

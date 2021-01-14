@@ -1,8 +1,8 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
 
-#define WIDTH 800
-#define HEIGHT 600
+// #define WIDTH 800
+// #define HEIGHT 600
 #define WORKGROUP_SIZE 32
 
 #define EPSILON 0.0001
@@ -25,6 +25,8 @@ struct Camera
   float pixelSize;
   float halfWidth;
   float halfHeight;
+  int width;
+  int height;
 };
 
 struct Material {
@@ -46,7 +48,6 @@ struct Shape {
   Material material;
   vec4 data[6];
   int typeEnum;
-  int id;
 };
 
 // struct BVH {
@@ -66,12 +67,12 @@ layout (std140, binding = 2) buffer Shapes
 	Shape shapes[ ];
 };
 
-layout (std140, binding = 3) buffer BVH
+layout (std140, binding = 3) buffer Mesh
 {
   mat4 inverseTransform;
   Material material;
   vec4 nodes[];
-} bvh;
+} mesh;
 
 void rayForPixel(in vec2 p, out vec4 rayO, out vec4 rayD) {
   float xOffset = (p.x + 0.5) * ubo.camera.pixelSize;
@@ -165,15 +166,15 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
 		
 		if ((t > EPSILON) && (t < resT))
 		{
-			id = shapes[i].id;
+			id = i;
 			resT = t;
 		}
 	}	
   
-  transformRay(bvh.inverseTransform, rayO, rayD, nRayO, nRayD);
-  for (int i = 0; i < bvh.nodes.length(); i+=6) {
+  transformRay(mesh.inverseTransform, rayO, rayD, nRayO, nRayD);
+  for (int i = 0; i < mesh.nodes.length(); i+=6) {
     // float t = -1.0;
-    t = triangleIntersect(nRayO, nRayD, bvh.nodes[i], bvh.nodes[i+1], bvh.nodes[i+2], uv);
+    t = triangleIntersect(nRayO, nRayD, mesh.nodes[i], mesh.nodes[i+1], mesh.nodes[i+2], uv);
     if ((t > EPSILON) && (t < resT))
     {
       id = -(i/6); //TODO fix this hack, which is to differentiate with shapes. will fail at -1
@@ -265,7 +266,7 @@ bool isShadowed(in vec4 point, in vec4 lightPos)
   int id = intersect(point, direction, t, uv);
 
   // if ((id >= 0 && t < distance))
-  if (t < distance)
+  if (t > 0 && t < distance)
   {
     return true;
   }
@@ -285,11 +286,12 @@ vec4 lighting(in Material material, in vec4 lightPos, in HitParams hitParams, in
   effectiveColour = intensity * material.colour; //* light->intensity;
 
   vec4 ambient = effectiveColour * material.ambient;
+  // vec4 ambient = vec4(0.3,0.0,0.0,1.0);
   if (shadowed) {
     return ambient;
   }
 
-  vec4 lightv = normalize(lightPos - hitParams.point);
+  vec4 lightv = normalize(lightPos - hitParams.overPoint);
 
   float lightDotNormal = dot(lightv, hitParams.normalv);
   if (lightDotNormal < 0)
@@ -344,11 +346,12 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
   if (objectID >= 0) {
     for (int i = 0; i < shapes.length(); i++)
     {
-      if (objectID == shapes[i].id)
+      if (objectID == i)
       {
         HitParams hitParams = getHitParams(rayO, rayD, t, shapes[i].inverseTransform, shapes[i].typeEnum, shapes[i].data[3], shapes[i].data[4], shapes[i].data[5], uv);
 
         bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
+        // bool shadowed = false;
         color = lighting(shapes[i].material, ubo.lightPos,
                                 hitParams, shadowed);
         // color = vec4(0.0,1.0,0.0,1.0);
@@ -357,10 +360,11 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
   }
 
   else {
-      HitParams hitParams = getHitParams(rayO, rayD, t, bvh.inverseTransform, 2, bvh.nodes[(objectID * -6) + 3], bvh.nodes[(objectID * -6) + 4], bvh.nodes[(objectID * -6) + 5], uv);
+      HitParams hitParams = getHitParams(rayO, rayD, t, mesh.inverseTransform, 2, mesh.nodes[(objectID * -6) + 3], mesh.nodes[(objectID * -6) + 4], mesh.nodes[(objectID * -6) + 5], uv);
 
       bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
-      color = lighting(bvh.material, ubo.lightPos,
+      // bool shadowed = false;
+      color = lighting(mesh.material, ubo.lightPos,
                               hitParams, shadowed);
       // color = vec4(1.0,0.0,0.0,1.0);
   }
@@ -393,7 +397,7 @@ void main() {
   In order to fit the work into workgroups, some unnecessary threads are launched.
   We terminate those threads here. 
   */
-  if(gl_GlobalInvocationID.x >= WIDTH || gl_GlobalInvocationID.y >= HEIGHT)
+  if(gl_GlobalInvocationID.x >= ubo.camera.width || gl_GlobalInvocationID.y >= ubo.camera.height)
     return;
 
   // if (shapes.length() < 1) {
@@ -418,5 +422,5 @@ void main() {
 
           
   // store the rendered mandelbrot set into a storage buffer:
-  imageData[WIDTH * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = color;
+  imageData[ubo.camera.width * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = color;
 }

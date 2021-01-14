@@ -30,14 +30,24 @@ struct Shape {
     alignas(16) Material material;
     glm::vec4 data[6];
     uint32_t typeEnum;
-    uint32_t id;
 };
 
-struct BVH {
+struct Mesh {
     glm::mat4 inverseTransform;
-    alignas(16) Material material;
-    glm::vec4 nodes[];
+    Material material;
+//    char padding[12];
+    
+    float nodes[1];
 };
+
+//struct TLAS {
+//
+//};
+//
+//struct BLAS {
+//    glm::vec4* vertices;
+//    glm::vec4* normals;
+//};
 
 struct Camera {
     glm::mat4 inverseTransform;
@@ -77,12 +87,11 @@ Camera makeCamera(glm::vec4 position, glm::vec4 centre, glm::vec4 up, uint32_t h
     return camera;
 }
 
-static int sNextId = 0;
-uint32_t getNextId() { return ++sNextId; }
+//static int sNextId = 0;
+//uint32_t getNextId() { return ++sNextId; }
 
 Shape makeSphere(Material& material, glm::mat4& transform) {
     Shape shape {};
-    shape.id = getNextId();
     shape.typeEnum = 0;
     shape.inverseTransform = glm::affineInverse(transform);
     shape.material = material;
@@ -92,7 +101,6 @@ Shape makeSphere(Material& material, glm::mat4& transform) {
 
 Shape makePlane(Material& material, glm::mat4& transform) {
     Shape shape {};
-    shape.id = getNextId();
     shape.typeEnum = 1;
     shape.inverseTransform = glm::affineInverse(transform);
     shape.material = material;
@@ -102,7 +110,6 @@ Shape makePlane(Material& material, glm::mat4& transform) {
 
 Shape makeTriangle(std::vector<glm::vec4>& params, Material& material, glm::mat4& transform) {
     Shape shape {};
-    shape.id = getNextId();
     shape.typeEnum = 2;
     shape.inverseTransform = glm::affineInverse(transform);
     shape.material = material;
@@ -210,7 +217,7 @@ void parseObjFile(std::string const &path, std::vector<unsigned int> &vertexIndi
     }
 }
 
-BVH* makeBVH(std::string const &path, Material& material, glm::mat4& transform, uint32_t& size) {
+Mesh* makeBVH(std::string const &path, Material& material, glm::mat4& transform, size_t& size) {
     std::vector<unsigned int> vertexIndices;
 //    std::vector<unsigned int> uvIndices;
     std::vector<unsigned int> normalIndices;
@@ -232,13 +239,24 @@ BVH* makeBVH(std::string const &path, Material& material, glm::mat4& transform, 
         triangleParams.push_back(temp_normals[normalIndices[i + 2] - 1]);
     }
     
-    size = triangleParams.size() * sizeof(glm::vec4);
+    size_t sizeParams = triangleParams.size() * sizeof(glm::vec4);
+    size = sizeof(Mesh) + sizeParams;
+    size_t test= sizeof(Mesh);
     
-    BVH* bvh = (BVH*)malloc(sizeof(glm::mat4) + sizeof(Material) + size);
+//    Mesh *bvh = (Mesh*)malloc(size);
+//
+//    bvh->inverseTransform =glm::affineInverse(transform);
+//    bvh->material = material;
+//    bvh->nodes = reinterpret_cast<char*>(bvh) + sizeof(Mesh);
+//    memcpy(bvh->nodes, triangleParams.data(), sizeParams );
     
+    char * ptr = new char[sizeof(Mesh) - 1 + sizeParams];
+    Mesh * bvh = reinterpret_cast<Mesh*>(ptr);
     bvh->inverseTransform =glm::affineInverse(transform);
     bvh->material = material;
-    memcpy(bvh->nodes, triangleParams.data(), size);
+    memcpy(bvh->nodes, triangleParams.data(), sizeParams );
+    
+//    size += sizeof(Mesh);
     
     return bvh;
 }

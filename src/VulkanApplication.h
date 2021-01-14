@@ -1,4 +1,4 @@
-#pragma once
+﻿#pragma once
 
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 
@@ -29,33 +29,34 @@ const bool enableValidationLayers = false;
 const bool enableValidationLayers = true;
 #endif
 
-const std::vector<const char*> validationLayers = {
-    "VK_LAYER_KHRONOS_validation"
-};
+const std::vector<const char *> validationLayers = {
+    "VK_LAYER_KHRONOS_validation"};
 
-struct UBOCompute {                            // Compute shader uniform block object
+struct UBOCompute
+{ // Compute shader uniform block object
     glm::vec4 lightPos;
     alignas(16) Primitives::Camera camera;
 } ubo;
 
-class VulkanApplication {
+class VulkanApplication
+{
 public:
     VulkanApplication();
     ~VulkanApplication();
     void run();
-    uint32_t uniformBufferSize;
-    uint32_t shapesBufferSize;
-    uint32_t bvhBufferSize;
-    uint32_t outBufferSize;
-    
+    size_t uniformBufferSize;
+    size_t shapesBufferSize;
+    size_t bvhBufferSize;
+    size_t outBufferSize;
+
     std::vector<Primitives::Shape> shapes;
-    Primitives::BVH* bvh = nullptr;
+    Primitives::Mesh *bvh;
 
 private:
     VulkanInstance instance;
     VulkanDevice device;
     VulkanPipeline pipeline;
-    
+
     VkCommandPool commandPool;
     VkCommandBuffer commandBuffer;
 
@@ -67,13 +68,12 @@ private:
     void createCommandBuffer(VkCommandBuffer &cmdBuffer);
     void destroyCommandBuffer(VkCommandBuffer &cmdBuffer, bool end);
     void finaliseMainCommandBuffer();
-//    void flushCommandBuffer(VkCommandBuffer commandBuffer, bool free);
+    //    void flushCommandBuffer(VkCommandBuffer commandBuffer, bool free);
 
     void runCommandBuffer(VkCommandBuffer commandBuffer, bool end, bool free);
 
     void saveRenderedImage();
-    
+
     void updateUniformBuffers();
     void createShapes();
-
-    };
+};
