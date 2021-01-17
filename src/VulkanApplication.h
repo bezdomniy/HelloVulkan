@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 
@@ -16,6 +16,7 @@
 
 #include <iostream>
 #include <fstream>
+#include <vector>
 
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
@@ -46,11 +47,16 @@ public:
     void run();
     size_t uniformBufferSize;
     size_t shapesBufferSize;
+    size_t meshBufferSize;
     size_t bvhBufferSize;
+    size_t blasBufferSize;
     size_t outBufferSize;
 
     std::vector<Primitives::Shape> shapes;
-    Primitives::Mesh *bvh;
+    Primitives::Mesh *mesh;
+    
+    Primitives::BVH *bvh;
+    std::vector<Primitives::NodeBLAS> blas;
 
 private:
     VulkanInstance instance;
@@ -69,6 +75,7 @@ private:
     void destroyCommandBuffer(VkCommandBuffer &cmdBuffer, bool end);
     void finaliseMainCommandBuffer();
     //    void flushCommandBuffer(VkCommandBuffer commandBuffer, bool free);
+    void addSSBOBuffer(void* buffer, size_t bufferSize, VkCommandBuffer copyCmd, VkBufferCopy copyRegion);
 
     void runCommandBuffer(VkCommandBuffer commandBuffer, bool end, bool free);
 

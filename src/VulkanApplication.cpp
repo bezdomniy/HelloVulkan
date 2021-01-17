@@ -13,33 +13,17 @@ void VulkanApplication::initVulkan()
     device.addBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBufferSize);
 
     createShapes();
-    device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, shapesBufferSize);
-
-    device.addBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, shapesBufferSize, shapes.data());
-
+    
     VkCommandBuffer copyCmd;
-    createCommandBuffer(copyCmd);
     VkBufferCopy copyRegion = {};
-    copyRegion.size = shapesBufferSize;
-    vkCmdCopyBuffer(copyCmd, device.getBuffer(3).getBuffer(), device.getBuffer(2).getBuffer(), 1, &copyRegion);
-    runCommandBuffer(copyCmd, true, true);
+    
+    addSSBOBuffer(shapes.data(), shapesBufferSize, copyCmd, copyRegion);
+    addSSBOBuffer(mesh, meshBufferSize, copyCmd, copyRegion);
+    
+    addSSBOBuffer(bvh, bvhBufferSize, copyCmd, copyRegion);
+    addSSBOBuffer(blas.data(), blasBufferSize, copyCmd, copyRegion);
 
-    device.getBuffer(3).destroy();
-    device.getBuffers().pop_back();
-
-    device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, bvhBufferSize);
-
-    device.addBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, bvhBufferSize, bvh);
-
-    createCommandBuffer(copyCmd);
-    copyRegion.size = bvhBufferSize;
-    vkCmdCopyBuffer(copyCmd, device.getBuffer(4).getBuffer(), device.getBuffer(3).getBuffer(), 1, &copyRegion);
-    runCommandBuffer(copyCmd, true, true);
-
-    device.getBuffer(4).destroy();
-    device.getBuffers().pop_back();
-
-    std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
+    std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
 
     pipeline.init(device.getBuffers(), bufferTypes, "../../src/shaders/comp.spv");
 
@@ -58,11 +42,11 @@ void VulkanApplication::mainLoop()
 
 void VulkanApplication::cleanup()
 {
-    if (bvh)
+    if (mesh)
     {
         //        free(bvh->nodes);
 //        free(bvh);
-        delete [] bvh;
+        delete [] mesh;
     }
 
     for (auto &buf : device.getBuffers())
@@ -74,7 +58,7 @@ void VulkanApplication::cleanup()
 
     pipeline.destroy();
     vkDestroyDevice(device.getLogical(), nullptr);
-    vkDestroyInstance(instance, nullptr);
+    
 }
 
 void VulkanApplication::createCommandPool()
@@ -211,9 +195,9 @@ void VulkanApplication::updateUniformBuffers()
     //    ubo.lightPos.y = 0.0f + sin(glm::radians(timer * 360.0f)) * 2.0f;
     //    ubo.lightPos.z = 0.0f + cos(glm::radians(timer * 360.0f)) * 2.0f;
 
-    ubo.lightPos.x = -10.0f;
+    ubo.lightPos.x = 10.0f;
     ubo.lightPos.y = 10.0f;
-    ubo.lightPos.z = 0.0f;
+    ubo.lightPos.z = -10.0f;
     ubo.lightPos.w = 1.0f; //TODO check if this is right - should it be 0?
 
     ubo.camera = Primitives::makeCamera(glm::vec4(0.f, 1.5f, -5.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 0.f), 800, 600, 1.0472);
@@ -229,16 +213,18 @@ void VulkanApplication::createShapes()
     Primitives::Material mat{glm::vec4(0.537f, 0.831f, 0.914f, 1.f), 0.1f, 0.7f, 0.3f, 200};
 
     //    glm::mat4 t(1.0f);
-        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(1.2,1.2,1.2));
-//    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.6, 0.6, 0.6));
-    //    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.003,0.003,0.003));
-    glm::mat4 translate = glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 0.2f, 0.5f));
+//        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(1.2,1.2,1.2));
+    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.6, 0.6, 0.6));
+//        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.003,0.003,0.003));
+    glm::mat4 translate = glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 1.f, 0.5f));
     glm::mat4 sT = translate * scale;
     
 //    glm::mat4 sT(1.0);
     //    Primitives::Shape s = Primitives::makeSphere(mat, sT);
-    //    shapes = Primitives::makeModel("../../assets/models/dragon.obj", mat, sT);
-    bvh = Primitives::makeBVH("../../assets/models/armadillo2.obj", mat, sT, bvhBufferSize);
+    mesh = Primitives::makeMesh("../../assets/models/cube.obj", mat, sT, meshBufferSize);
+    
+    std::tie(bvh,blas) = makeBVH("../../assets/models/cube.obj", mat, sT, bvhBufferSize);
+    blasBufferSize = blas.size() * sizeof(Primitives::NodeBLAS);
 
     //    bvhBufferSize += 16;
 
@@ -249,6 +235,20 @@ void VulkanApplication::createShapes()
     shapes.push_back(p);
     shapesBufferSize = sizeof(Primitives::Shape) * shapes.size();
     //    bvhBufferSize = sizeof(*bvh) + 16; //TODO is this plus 16, and why is size so low
+}
+
+void VulkanApplication::addSSBOBuffer(void* buffer, size_t bufferSize, VkCommandBuffer copyCmd, VkBufferCopy copyRegion) {
+    device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, bufferSize);
+
+    device.addBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, bufferSize, buffer);
+
+    createCommandBuffer(copyCmd);
+    copyRegion.size = bufferSize;
+    vkCmdCopyBuffer(copyCmd, device.getBuffer(device.getBuffers().size()-1).getBuffer(), device.getBuffer(device.getBuffers().size()-2).getBuffer(), 1, &copyRegion);
+    runCommandBuffer(copyCmd, true, true);
+
+    device.getBuffer(device.getBuffers().size()-1).destroy();
+    device.getBuffers().pop_back();
 }
 
 void VulkanApplication::run()

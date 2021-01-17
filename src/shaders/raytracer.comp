@@ -8,6 +8,8 @@
 #define EPSILON 0.0001
 #define MAXLEN 10000.0
 
+const float INFINITY = 1. / 0.;
+
 layout (local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;
 
 struct Pixel{
@@ -50,11 +52,20 @@ struct Shape {
   int typeEnum;
 };
 
-// struct BVH {
-//     mat4 inverseTransform;
-//     Material material;
-//     vec4 nodes[];
-// };
+struct NodeTLAS {
+    vec4 first;
+    vec4 second;
+};
+
+struct NodeBLAS {
+    vec4 point1;
+    vec4 point2;
+    vec4 point3;
+    vec4 normal1;
+    vec4 normal2;
+    vec4 normal3;
+};
+
 
 layout (binding = 1) uniform UBO 
 {
@@ -71,8 +82,18 @@ layout (std140, binding = 3) buffer Mesh
 {
   mat4 inverseTransform;
   Material material;
-  vec4 nodes[];
+  NodeBLAS nodes[];
 } mesh;
+
+layout (std140, binding = 4) buffer TLAS {
+    mat4 inverseTransform;
+    Material material;
+    NodeTLAS TLAS[];
+} tlas;
+
+layout (std140, binding = 5) buffer BLAS {
+    NodeBLAS BLAS[];
+} blas;
 
 void rayForPixel(in vec2 p, out vec4 rayO, out vec4 rayD) {
   float xOffset = (p.x + 0.5) * ubo.camera.pixelSize;
@@ -119,9 +140,9 @@ float planeIntersect(in vec4 rayO, in vec4 rayD) {
     return -rayO.y / rayD.y;
 }
 
-float triangleIntersect(in vec4 rayO, in vec4 rayD,in vec4 p1,in vec4 p2,in vec4 p3, out vec2 uv) {
-    vec3 e1 = vec3(p2 - p1);
-    vec3 e2 = vec3(p3 - p1);
+float triangleIntersect(in vec4 rayO, in vec4 rayD,in NodeBLAS triangle, out vec2 uv) {
+    vec3 e1 = vec3(triangle.point2 - triangle.point1);
+    vec3 e2 = vec3(triangle.point3 - triangle.point1);
 
     vec3 dirCrossE2 = cross(vec3(rayD), e2);
     float det = dot(e1, dirCrossE2);
@@ -129,7 +150,7 @@ float triangleIntersect(in vec4 rayO, in vec4 rayD,in vec4 p1,in vec4 p2,in vec4
         return -1.0;}
 
     float f = 1.0 / det;
-    vec3 p1ToOrigin = vec3(rayO - p1);
+    vec3 p1ToOrigin = vec3(rayO - triangle.point1);
     uv.x = f * dot(p1ToOrigin, dirCrossE2);
     if (uv.x < 0 || uv.x > 1) {
       return -1.0;
@@ -141,6 +162,73 @@ float triangleIntersect(in vec4 rayO, in vec4 rayD,in vec4 p1,in vec4 p2,in vec4
         return -1.0;
     }
     return f * dot(e2, originCrossE1);
+}
+
+void checkAxis(in float origin, in float direction, in float lowerBound, in float upperBound, out float min, out float max)
+{
+  float tmin_numerator = lowerBound - origin;
+  float tmax_numerator = upperBound - origin;
+
+  if (abs(direction) >= EPSILON)
+  {
+    min = tmin_numerator / direction;
+    max = tmax_numerator / direction;
+  }
+  else
+  {
+    min = tmin_numerator * INFINITY;
+    max = tmax_numerator * INFINITY;
+  }
+  if (min > max) 
+  {
+    float temp = max;
+    max = min;
+    min = max;
+  }
+}
+
+bool intersectAABB(in vec4 rayO, in vec4 rayD, in NodeTLAS aabb) {
+  float xmin, xmax, ymin, ymax, zmin, zmax;
+  checkAxis(rayO.x, rayD.x, aabb.first.x, aabb.second.x, xmin, xmax);
+  checkAxis(rayO.y, rayD.y, aabb.first.y, aabb.second.y, ymin, ymax);
+  checkAxis(rayO.z, rayD.z, aabb.first.z, aabb.second.z, zmin, zmax);
+
+  float tmin = max(max(xmin, ymin), zmin);
+  float tmax = min(min(xmax, ymax), zmax);
+
+  return !(tmin > tmax);
+}
+
+float intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv) {
+    int level = 0;
+    int branch = 0;
+    int node = 0;
+    
+    while (node < tlas.TLAS.length()) 
+    {
+        if (branch > 0) {
+            node += int(pow(2,branch));
+        }
+        
+        if (intersectAABB(rayO, rayD, tlas.TLAS[node])) {
+            // std::cout << "Hit:  " << this->elements.at(node) << std::endl;
+            branch = node - int(pow(2,level)-1);
+        }
+        else if (intersectAABB(rayO, rayD, tlas.TLAS[node + 1])) {
+            // std::cout << "Miss: " << this->elements.at(node) << std::endl;
+            // std::cout << "Hit:  " << this->elements.at(node + 1) << std::endl;
+            branch = node + 1 - int(pow(2,level)-1);
+        }
+        
+        level += 1;
+        node = int(pow(2,level)-1);
+    }
+    float t = -1.0;
+    node = int(pow(2,level-1)-1);
+
+    t = triangleIntersect(rayO, rayD, blas.BLAS[branch], uv);
+
+    return t;
 }
 
 int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
@@ -160,9 +248,9 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
     else if (shapes[i].typeEnum == 1) {
       t = planeIntersect(nRayO, nRayD);
     }
-    else if (shapes[i].typeEnum == 2) {
-      t = triangleIntersect(nRayO, nRayD, shapes[i].data[0], shapes[i].data[1], shapes[i].data[2], uv);
-    }
+    // else if (shapes[i].typeEnum == 2) {
+    //   t = triangleIntersect(nRayO, nRayD, shapes[i].data[0], shapes[i].data[1], shapes[i].data[2], uv);
+    // }
 		
 		if ((t > EPSILON) && (t < resT))
 		{
@@ -172,15 +260,32 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
 	}	
   
   transformRay(mesh.inverseTransform, rayO, rayD, nRayO, nRayD);
-  for (int i = 0; i < mesh.nodes.length(); i+=6) {
+  for (int i = 0; i < mesh.nodes.length(); i++) {
     // float t = -1.0;
-    t = triangleIntersect(nRayO, nRayD, mesh.nodes[i], mesh.nodes[i+1], mesh.nodes[i+2], uv);
+    t = triangleIntersect(nRayO, nRayD, mesh.nodes[i], uv);
     if ((t > EPSILON) && (t < resT))
     {
-      id = -(i/6); //TODO fix this hack, which is to differentiate with shapes. will fail at -1
+      id = -i; //TODO fix this hack, which is to differentiate with shapes. will fail at -1
       resT = t;
     }
   }
+
+  // transformRay(tlas.inverseTransform, rayO, rayD, nRayO, nRayD);
+  // t = intersectTLAS(nRayO, nRayD, uv);
+  // if ((t > EPSILON) && (t < resT)) {
+  //   resT = t;
+  //   id = -2;
+  // }
+  
+  // for (int i = 0; i < tlas.TLAS.length(); i++) {
+  //   // float t = -1.0;
+  //   t = triangleIntersect(nRayO, nRayD, tlas.TLAS.nodes[i], uv);
+  //   if ((t > EPSILON) && (t < resT))
+  //   {
+  //     id = -i; //TODO fix this hack, which is to differentiate with shapes. will fail at -1
+  //     resT = t;
+  //   }
+  // }
 
 	return id;
 }
@@ -334,7 +439,7 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
 	// Get intersected object ID
 	int objectID = intersect(rayO, rayD, t, uv);
 	
-	if (t >= MAXLEN - EPSILON)
+	if (t >= MAXLEN)
 	{
 		return color;
 	}
@@ -360,7 +465,7 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
   }
 
   else {
-      HitParams hitParams = getHitParams(rayO, rayD, t, mesh.inverseTransform, 2, mesh.nodes[(objectID * -6) + 3], mesh.nodes[(objectID * -6) + 4], mesh.nodes[(objectID * -6) + 5], uv);
+      HitParams hitParams = getHitParams(rayO, rayD, t, mesh.inverseTransform, 2, mesh.nodes[-objectID].normal1, mesh.nodes[-objectID].normal2, mesh.nodes[-objectID].normal3, uv);
 
       bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
       // bool shadowed = false;
