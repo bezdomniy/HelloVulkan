@@ -10,6 +10,7 @@
 #include <string>
 #include <vector>
 #include <utility>
+#include <limits>
 
 namespace Primitives {
 struct Material {
@@ -273,7 +274,7 @@ Mesh* makeMesh(std::string const &path, Material& material, glm::mat4& transform
     return mesh;
 }
 
-NodeTLAS mergeBounds(const NodeTLAS b1, const NodeTLAS b2)
+NodeTLAS mergeBounds(const NodeTLAS& b1, const NodeTLAS& b2)
 {
     NodeTLAS ret {glm::vec4(std::min(b1.first.x, b2.first.x),
                             std::min(b1.first.y, b2.first.y),
@@ -285,10 +286,18 @@ NodeTLAS mergeBounds(const NodeTLAS b1, const NodeTLAS b2)
     return ret;
 }
 
-NodeTLAS blasBounds(const NodeBLAS& node)
+NodeTLAS blasBounds(const NodeBLAS node)
 {
-    glm::vec4 min(std::min({node.point1.x, node.point2.x, node.point3.x}), std::min({node.point1.y, node.point2.y, node.point3.y}), std::min({node.point1.z, node.point2.z, node.point3.z}), 1.);
-    glm::vec4 max(std::max({node.point1.x, node.point2.x, node.point3.x}), std::max({node.point1.y, node.point2.y, node.point3.y}), std::max({node.point1.z, node.point2.z, node.point3.z}), 1.);
+    glm::vec4 min(std::min({node.point1.x, node.point2.x, node.point3.x}),
+                  std::min({node.point1.y, node.point2.y, node.point3.y}),
+                  std::min({node.point1.z, node.point2.z, node.point3.z}),
+                  1.);
+    
+    glm::vec4 max(std::max({node.point1.x, node.point2.x, node.point3.x}),
+                  std::max({node.point1.y, node.point2.y, node.point3.y}),
+                  std::max({node.point1.z, node.point2.z, node.point3.z}),
+                  1.);
+    
     return NodeTLAS {min, max};
 }
 
@@ -301,7 +310,7 @@ void recursiveBuild(std::vector<NodeTLAS>& tlas, std::vector<NodeBLAS>& blas, st
 {
     int nShapes = end - start ;
     
-    uint32_t node = (std::pow(2, level) ) + branch;
+    uint32_t node = (std::pow(2, level) - 1) + branch;
     
 //    if (node >= triangleParamsUnsorted.size()/2) {
 //        return;
@@ -312,17 +321,23 @@ void recursiveBuild(std::vector<NodeTLAS>& tlas, std::vector<NodeBLAS>& blas, st
 //        blas.at() = triangleParamsUnsorted.at(start);
 //        blas.at() = triangleParamsUnsorted.at(start + 1);
         
-        blas.push_back(triangleParamsUnsorted.at(start));
-        
+//        blas.push_back(triangleParamsUnsorted.at(start));
+//        tlas.at(node) = blasBounds(triangleParamsUnsorted.at(start));
+//
         if (nShapes == 2)
         {
-            blas.push_back(triangleParamsUnsorted.at(start + 1));
+////            blas.push_back(triangleParamsUnsorted.at(start + 1));
+//            tlas.at(node) = mergeBounds(blasBounds(triangleParamsUnsorted.at(start)),blasBounds(triangleParamsUnsorted.at(start+1)));
         }
+        
         return;
     }
     else
     {
-        NodeTLAS centroidBounds;
+        NodeTLAS centroidBounds {
+            glm::vec4(std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),1.f),
+            glm::vec4(-std::numeric_limits<float>::infinity(),-std::numeric_limits<float>::infinity(),-std::numeric_limits<float>::infinity(),1.f)
+        };
         
         for (auto it = triangleParamsUnsorted.begin() + start; it != triangleParamsUnsorted.begin() + end; ++it)
         {
@@ -373,10 +388,22 @@ void recursiveBuild(std::vector<NodeTLAS>& tlas, std::vector<NodeBLAS>& blas, st
     return;
 }
 
+uint32_t nextPowerOfTwo(uint32_t v)
+{
+    v--;
+    v |= v >> 1;
+    v |= v >> 2;
+    v |= v >> 4;
+    v |= v >> 8;
+    v |= v >> 16;
+    v++;
+    return v;
+}
+
 std::vector<NodeTLAS> buildTLAS(std::vector<NodeBLAS>& blas, std::vector<NodeBLAS>& triangleParamsUnsorted)
 {
     std::vector<NodeTLAS> tlas;
-    tlas.resize(triangleParamsUnsorted.size()/3*2);
+    tlas.resize(nextPowerOfTwo(triangleParamsUnsorted.size())*2);
     
     recursiveBuild(tlas,blas,triangleParamsUnsorted, 0, 0, 0, triangleParamsUnsorted.size());
     
@@ -395,14 +422,14 @@ std::pair<BVH*,std::vector<NodeBLAS>> makeBVH(std::string const &path, Material&
     
     size = sizeof(BVH) + tlasSizeParams;
     
-    char * ptr = new char[sizeof(BVH) - 2 + blasSizeParams + tlasSizeParams];
+    char * ptr = new char[sizeof(BVH) - 1 + tlasSizeParams];
     BVH * bvh = reinterpret_cast<BVH*>(ptr);
     bvh->inverseTransform =glm::affineInverse(transform);
     bvh->material = material;
     
     memcpy(bvh->TLAS, tlas.data(), tlasSizeParams);
     
-    return {bvh,blas};
+    return {bvh,triangleParamsUnsorted};
 }
 
 }

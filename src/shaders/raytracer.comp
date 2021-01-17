@@ -199,7 +199,7 @@ bool intersectAABB(in vec4 rayO, in vec4 rayD, in NodeTLAS aabb) {
   return !(tmin > tmax);
 }
 
-float intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv) {
+float intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout int id) {
     int level = 0;
     int branch = 0;
     int node = 0;
@@ -223,12 +223,28 @@ float intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv) {
         level += 1;
         node = int(pow(2,level)-1);
     }
-    float t = -1.0;
-    node = int(pow(2,level-1)-1);
+    branch = branch * 2;
 
-    t = triangleIntersect(rayO, rayD, blas.BLAS[branch], uv);
+    float t1 = -1.0;
+    float t2 = -1.0;
+    // id = -branch;
 
-    return t;
+    t1 = triangleIntersect(rayO, rayD, blas.BLAS[branch], uv);
+
+    if (branch + 1 < blas.BLAS.length()) {
+      t2 = triangleIntersect(rayO, rayD, blas.BLAS[branch + 1], uv);
+    }
+
+    if ((t1 > EPSILON) && (t1 < t2)) {
+      id = -branch;
+      return t1;
+    }
+    else if (t2 > EPSILON)
+    {
+    id = -(branch + 1);
+    return t2;
+    }
+    return -1.0;
 }
 
 int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
@@ -259,23 +275,23 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
 		}
 	}	
   
-  transformRay(mesh.inverseTransform, rayO, rayD, nRayO, nRayD);
-  for (int i = 0; i < mesh.nodes.length(); i++) {
-    // float t = -1.0;
-    t = triangleIntersect(nRayO, nRayD, mesh.nodes[i], uv);
-    if ((t > EPSILON) && (t < resT))
-    {
-      id = -i; //TODO fix this hack, which is to differentiate with shapes. will fail at -1
-      resT = t;
-    }
-  }
-
-  // transformRay(tlas.inverseTransform, rayO, rayD, nRayO, nRayD);
-  // t = intersectTLAS(nRayO, nRayD, uv);
-  // if ((t > EPSILON) && (t < resT)) {
-  //   resT = t;
-  //   id = -2;
+  // transformRay(mesh.inverseTransform, rayO, rayD, nRayO, nRayD);
+  // for (int i = 0; i < mesh.nodes.length(); i++) {
+  //   // float t = -1.0;
+  //   t = triangleIntersect(nRayO, nRayD, mesh.nodes[i], uv);
+  //   if ((t > EPSILON) && (t < resT))
+  //   {
+  //     id = -i; //TODO fix this hack, which is to differentiate with shapes. will fail at -1
+  //     resT = t;
+  //   }
   // }
+
+  transformRay(tlas.inverseTransform, rayO, rayD, nRayO, nRayD);
+  t = intersectTLAS(nRayO, nRayD, uv, id);
+  if ((t > EPSILON) && (t < resT)) {
+    resT = t;
+    // id = -2;
+  }
   
   // for (int i = 0; i < tlas.TLAS.length(); i++) {
   //   // float t = -1.0;
@@ -465,11 +481,11 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
   }
 
   else {
-      HitParams hitParams = getHitParams(rayO, rayD, t, mesh.inverseTransform, 2, mesh.nodes[-objectID].normal1, mesh.nodes[-objectID].normal2, mesh.nodes[-objectID].normal3, uv);
+      HitParams hitParams = getHitParams(rayO, rayD, t, tlas.inverseTransform, 2, blas.BLAS[-objectID].normal1, blas.BLAS[-objectID].normal2, blas.BLAS[-objectID].normal3, uv);
 
       bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
       // bool shadowed = false;
-      color = lighting(mesh.material, ubo.lightPos,
+      color = lighting(tlas.material, ubo.lightPos,
                               hitParams, shadowed);
       // color = vec4(1.0,0.0,0.0,1.0);
   }
