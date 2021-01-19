@@ -221,9 +221,9 @@ void VulkanApplication::createShapes()
     
 //    glm::mat4 sT(1.0);
     //    Primitives::Shape s = Primitives::makeSphere(mat, sT);
-//    mesh = Primitives::makeMesh("../../assets/models/cube.obj", mat, sT, meshBufferSize);
+    mesh = Primitives::makeMesh("../../assets/models/cube.obj", mat, sT, meshBufferSize);
     
-    std::tie(bvh,blas) = Primitives::makeBVH("../../assets/models/cube.obj", mat, sT, bvhBufferSize);
+    std::tie(bvh,blas) = Primitives::makeBVH("../../assets/models/armadillo2.obj", mat, sT, bvhBufferSize);
     blasBufferSize = blas.size() * sizeof(Primitives::NodeBLAS);
 
     //    bvhBufferSize += 16;
