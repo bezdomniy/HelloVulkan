@@ -183,7 +183,7 @@ void checkAxis(in float origin, in float direction, in float lowerBound, in floa
   {
     float temp = max;
     max = min;
-    min = max;
+    min = temp;
   }
 }
 
@@ -199,31 +199,32 @@ bool intersectAABB(in vec4 rayO, in vec4 rayD, in NodeTLAS aabb) {
   return !(tmin > tmax);
 }
 
-float intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout int id) {
+void intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout float resT, inout int id) {
     int level = 0;
     int branch = 0;
     int node = 0;
     
-    while (node < tlas.TLAS.length()) 
+    while (node + branch < tlas.TLAS.length()) 
     {
-        if (branch > 0) {
-            node += int(pow(2,branch));
+        // TODO it should be possible to follow both branches down. Need to figure out
+        // how to do this without recursion.
+        // maybe:
+        // height = log2(tlas.length())
+        // for loop over each branch and decrementing height
+        // build a list of final branch id's to test at the end
+        if (intersectAABB(rayO, rayD, tlas.TLAS[node+branch])) {
+            branch = branch * 2;
+        }
+        else if (node > 0 && intersectAABB(rayO, rayD, tlas.TLAS[node+branch + 1])) {
+            branch = (branch + 1) * 2;
+        }
+        else {
+          break;
         }
         
-        if (intersectAABB(rayO, rayD, tlas.TLAS[node])) {
-            // std::cout << "Hit:  " << this->elements.at(node) << std::endl;
-            branch = node - int(pow(2,level)-1);
-        }
-        else if (intersectAABB(rayO, rayD, tlas.TLAS[node + 1])) {
-            // std::cout << "Miss: " << this->elements.at(node) << std::endl;
-            // std::cout << "Hit:  " << this->elements.at(node + 1) << std::endl;
-            branch = node + 1 - int(pow(2,level)-1);
-        }
-        
+        node += int(pow(2, level));
         level += 1;
-        node = int(pow(2,level)-1);
     }
-    branch = branch * 2;
 
     float t1 = -1.0;
     float t2 = -1.0;
@@ -235,16 +236,15 @@ float intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout int id) {
       t2 = triangleIntersect(rayO, rayD, blas.BLAS[branch + 1], uv);
     }
 
-    if ((t1 > EPSILON) && (t1 < t2)) {
+    if ((t1 > EPSILON) && (t1 < resT) && (t1 < t2)) {
       id = -branch;
-      return t1;
+      resT = t1;
     }
-    else if (t2 > EPSILON)
+    else if ((t2 > EPSILON) && (t2 < resT))
     {
-    id = -(branch + 1);
-    return t2;
+      id = -(branch + 1);
+      resT = t2;
     }
-    return -1.0;
 }
 
 int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
@@ -287,11 +287,7 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
   // }
 
   transformRay(tlas.inverseTransform, rayO, rayD, nRayO, nRayD);
-  t = intersectTLAS(nRayO, nRayD, uv, id);
-  if ((t > EPSILON) && (t < resT)) {
-    resT = t;
-    // id = -2;
-  }
+  intersectTLAS(nRayO, nRayD, uv, resT, id);
   
   // for (int i = 0; i < tlas.TLAS.length(); i++) {
   //   // float t = -1.0;
