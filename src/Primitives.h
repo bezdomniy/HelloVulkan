@@ -316,24 +316,12 @@ void recursiveBuild(std::vector<NodeTLAS>& tlas, std::vector<NodeBLAS>& blas, st
 //        return;
 //    }
     
-    if (nShapes <= 2)
-    {
-//        blas.at() = triangleParamsUnsorted.at(start);
-//        blas.at() = triangleParamsUnsorted.at(start + 1);
-        
-//        blas.push_back(triangleParamsUnsorted.at(start));
-//        tlas.at(node) = blasBounds(triangleParamsUnsorted.at(start));
-//
-        if (nShapes == 2)
-        {
-////            blas.push_back(triangleParamsUnsorted.at(start + 1));
-//            tlas.at(node) = mergeBounds(blasBounds(triangleParamsUnsorted.at(start)),blasBounds(triangleParamsUnsorted.at(start+1)));
-        }
-        
-        return;
-    }
-    else
-    {
+//    if (nShapes <= 2)
+//    {
+//        return;
+//    }
+//    else
+//    {
         NodeTLAS centroidBounds {
             glm::vec4(std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),1.f),
             glm::vec4(-std::numeric_limits<float>::infinity(),-std::numeric_limits<float>::infinity(),-std::numeric_limits<float>::infinity(),1.f)
@@ -378,13 +366,30 @@ void recursiveBuild(std::vector<NodeTLAS>& tlas, std::vector<NodeBLAS>& blas, st
             
             tlas.at(node) = centroidBounds;
             
-            recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, branch * 2, start, mid);
-            recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, (branch * 2) + 1, mid, end); //TODO check branch calc
+            if (nShapes > 2) {
+                recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, branch * 2, start, mid);
+                recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, (branch * 2) + 1, mid, end); //TODO check branch calc
+            }
+            else
+            {
+                blas.push_back(triangleParamsUnsorted.at(start));
+        //
+                if (nShapes == 2)
+                {
+                    blas.push_back(triangleParamsUnsorted.at(start + 1));
+                }
+                else
+                {
+        //          If there is only one leaf node, just add it twice to make all inner nodes have 2 children
+                    blas.push_back(triangleParamsUnsorted.at(start));
+                }
+            }
             
             //            node->addChild(leftChild);
             //            node->addChild(rightChild);
         }
-    }
+//    }
+    
     return;
 }
 
@@ -403,7 +408,7 @@ uint32_t nextPowerOfTwo(uint32_t v)
 std::vector<NodeTLAS> buildTLAS(std::vector<NodeBLAS>& blas, std::vector<NodeBLAS>& triangleParamsUnsorted)
 {
     std::vector<NodeTLAS> tlas;
-    tlas.resize(nextPowerOfTwo(triangleParamsUnsorted.size())*2);
+    tlas.resize(nextPowerOfTwo(triangleParamsUnsorted.size())-1);
     
     recursiveBuild(tlas,blas,triangleParamsUnsorted, 0, 0, 0, triangleParamsUnsorted.size());
     
@@ -415,7 +420,7 @@ std::pair<BVH*,std::vector<NodeBLAS>> makeBVH(std::string const &path, Material&
     size_t blasSizeParams = triangleParamsUnsorted.size() * sizeof(NodeBLAS);
     
     std::vector<NodeBLAS> blas;
-    blas.reserve(triangleParamsUnsorted.size());
+    blas.reserve(triangleParamsUnsorted.size()); // needs to be more in case of 2 leaf padding
     
     std::vector<NodeTLAS> tlas = buildTLAS(blas,triangleParamsUnsorted);
     size_t tlasSizeParams = tlas.size() * sizeof(NodeTLAS);
@@ -429,7 +434,7 @@ std::pair<BVH*,std::vector<NodeBLAS>> makeBVH(std::string const &path, Material&
     
     memcpy(bvh->TLAS, tlas.data(), tlasSizeParams);
     
-    return {bvh,triangleParamsUnsorted};
+    return {bvh,blas};
 }
 
 }
