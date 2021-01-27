@@ -69,13 +69,13 @@ struct NodeBLAS {
 
 layout (binding = 1) uniform UBO 
 {
-	vec4 lightPos;
-	Camera camera;
+  vec4 lightPos;
+  Camera camera;
 } ubo;
 
 layout (std140, binding = 2) buffer Shapes
 {
-	Shape shapes[ ];
+  Shape shapes[ ];
 };
 
 layout (std140, binding = 3) buffer Mesh
@@ -199,62 +199,93 @@ bool intersectAABB(in vec4 rayO, in vec4 rayD, in NodeTLAS aabb) {
   return !(tmin > tmax);
 }
 
+const int MAX_STACK_SIZE = 20;
+struct Node {
+  int level;
+  int branch;
+};
+
+void push_stack(in Node node, inout Node[MAX_STACK_SIZE] stack, inout int top) {
+  top += 1;
+  stack[top] = node;
+}
+
+Node pop_stack(inout Node[MAX_STACK_SIZE] stack, inout int top) {
+  Node ret = stack[top];
+  top -= 1;
+  return ret;
+}
+
 void intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout float resT, inout int id) {
-    int level = 0;
-    int branch = 0;
-    int node = 0;
-    
-    while (node + branch < tlas.TLAS.length()) 
+    // int level = 0;
+    // int branch = 0;
+    // int nodeIdx = 0;
+
+    int[MAX_STACK_SIZE] primitiveIndices;
+    Node[MAX_STACK_SIZE] stack;
+    int topStack = -1;
+    int topPrimivitiveIndices = 0;
+    Node nextNode = {0, 0};
+    push_stack(nextNode,stack, topStack);
+
+    while (topStack > -1) 
     {
-        // TODO it should be possible to follow both branches down. Need to figure out
-        // how to do this without recursion.
-        // maybe:
-        // height = log2(tlas.length())
-        // for loop over each branch and decrementing height
-        // build a list of final branch id's to test at the end
-        if (intersectAABB(rayO, rayD, tlas.TLAS[node+branch])) {
-            branch = branch * 2;
+      nextNode = pop_stack(stack, topStack);
+      // nodeIdx = int(pow(2, nextNode.level))  - 1 + nextNode.branch;
+
+      int firstChildIdx = int(pow(2, nextNode.level+1)) -1 + (nextNode.branch*2);
+
+      if (firstChildIdx < tlas.TLAS.length()) {
+        if (intersectAABB(rayO, rayD, tlas.TLAS[firstChildIdx])) {
+          Node newNode = {nextNode.level + 1, nextNode.branch * 2};
+          push_stack(newNode, stack, topStack);
         }
-        else if (node > 0 && intersectAABB(rayO, rayD, tlas.TLAS[node+branch + 1])) {
-            branch = (branch + 1) * 2;
+
+        if (intersectAABB(rayO, rayD, tlas.TLAS[firstChildIdx + 1])) {
+          Node newNode = {nextNode.level + 1, (nextNode.branch * 2) + 1};
+          push_stack(newNode, stack, topStack);
         }
-        else {
-          break;
-        }
-        
-        node += int(pow(2, level));
-        level += 1;
+      }
+      else {
+        primitiveIndices[topPrimivitiveIndices] = nextNode.branch * 2;
+        topPrimivitiveIndices += 1;
+      }
     }
 
+    // TODO fill another array with index values of BLAS array and loop over it in this next part
+
+  for (int i = 0; i < topPrimivitiveIndices; i++)
+  {    
     float t1 = -1.0;
     float t2 = -1.0;
     // id = -branch;
 
-    t1 = triangleIntersect(rayO, rayD, blas.BLAS[branch], uv);
+    t1 = triangleIntersect(rayO, rayD, blas.BLAS[primitiveIndices[i]], uv);
 
-    if (branch + 1 < blas.BLAS.length()) {
-      t2 = triangleIntersect(rayO, rayD, blas.BLAS[branch + 1], uv);
+    if (primitiveIndices[i] + 1 < blas.BLAS.length() && blas.BLAS[primitiveIndices[i] + 1].point1.w > (0.0 + EPSILON)) {
+      t2 = triangleIntersect(rayO, rayD, blas.BLAS[primitiveIndices[i] + 1], uv);
     }
 
     if ((t1 > EPSILON) && (t1 < resT) && (t1 < t2)) {
-      id = -branch;
+      id = -primitiveIndices[i];
       resT = t1;
     }
     else if ((t2 > EPSILON) && (t2 < resT))
     {
-      id = -(branch + 1);
+      id = -(primitiveIndices[i] + 1);
       resT = t2;
     }
+  }
 }
 
 int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
 {
-	int id = -1;
+  int id = -1;
   vec4 nRayO, nRayD;
   float t = -1.0;
 
-	for (int i = 0; i < shapes.length(); i++)
-	{
+  for (int i = 0; i < shapes.length(); i++)
+  {
     // vec4 nRayO, nRayD;
     transformRay(shapes[i].inverseTransform, rayO, rayD, nRayO, nRayD);
     
@@ -267,13 +298,13 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
     // else if (shapes[i].typeEnum == 2) {
     //   t = triangleIntersect(nRayO, nRayD, shapes[i].data[0], shapes[i].data[1], shapes[i].data[2], uv);
     // }
-		
-		if ((t > EPSILON) && (t < resT))
-		{
-			id = i;
-			resT = t;
-		}
-	}	
+    
+    if ((t > EPSILON) && (t < resT))
+    {
+      id = i;
+      resT = t;
+    }
+  } 
   
   // transformRay(mesh.inverseTransform, rayO, rayD, nRayO, nRayD);
   // for (int i = 0; i < mesh.nodes.length(); i++) {
@@ -299,7 +330,7 @@ int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
   //   }
   // }
 
-	return id;
+  return id;
 }
 
 vec4 normalToWorld(in vec4 normal, in mat4 inverseTransform)
@@ -444,21 +475,21 @@ vec4 lighting(in Material material, in vec4 lightPos, in HitParams hitParams, in
 
 vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
 {
-	vec4 color = vec4(0.0);
+  vec4 color = vec4(0.0);
   vec2 uv;
-	float t = MAXLEN;
+  float t = MAXLEN;
 
-	// Get intersected object ID
-	int objectID = intersect(rayO, rayD, t, uv);
-	
-	if (t >= MAXLEN)
-	{
-		return color;
-	}
-	
-	// vec4 pos = rayO + t * rayD;
-	// vec4 lightVec = normalize(ubo.lightPos - pos);				
-	// vec3 normal;
+  // Get intersected object ID
+  int objectID = intersect(rayO, rayD, t, uv);
+  
+  if (t >= MAXLEN)
+  {
+    return color;
+  }
+  
+  // vec4 pos = rayO + t * rayD;
+  // vec4 lightVec = normalize(ubo.lightPos - pos);       
+  // vec3 normal;
 
   if (objectID >= 0) {
     for (int i = 0; i < shapes.length(); i++)
@@ -488,23 +519,23 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
 
 
 
-	// if (id == -1)
-	// 	return color;
+  // if (id == -1)
+  //  return color;
 
-	// id = objectID;
+  // id = objectID;
 
-	// Shadows
-	// t = length(ubo.lightPos - pos);
-	// color *= calcShadow(pos, lightVec, id, t);
-	
-	// // Fog
-	// color = fog(t, color);	
-	
-	// // Reflect ray for next render pass
-	// reflectRay(rayD, normal);
-	// rayO = pos;	
-	
-	return color;
+  // Shadows
+  // t = length(ubo.lightPos - pos);
+  // color *= calcShadow(pos, lightVec, id, t);
+  
+  // // Fog
+  // color = fog(t, color); 
+  
+  // // Reflect ray for next render pass
+  // reflectRay(rayD, normal);
+  // rayO = pos;  
+  
+  return color;
 }
 
 
@@ -529,10 +560,10 @@ void main() {
   vec4 rayO, rayD;
 
   rayForPixel(gl_GlobalInvocationID.xy, rayO, rayD);
-		
-	// Basic color path
-	int id = 0;
-	vec4 color = renderScene(rayO, rayD, id);
+    
+  // Basic color path
+  int id = 0;
+  vec4 color = renderScene(rayO, rayD, id);
 
 
   // color = vec4(1.0,0.0,0.0,1.0);
@@ -541,3 +572,4 @@ void main() {
   // store the rendered mandelbrot set into a storage buffer:
   imageData[ubo.camera.width * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = color;
 }
+
