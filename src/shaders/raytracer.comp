@@ -1,5 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
+#extension GL_EXT_debug_printf : enable
 
 // #define WIDTH 800
 // #define HEIGHT 600
@@ -217,40 +218,40 @@ Node pop_stack(inout Node[MAX_STACK_SIZE] stack, inout int top) {
 }
 
 void intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout float resT, inout int id) {
-    // int level = 0;
-    // int branch = 0;
-    // int nodeIdx = 0;
+  // int level = 0;
+  // int branch = 0;
+  // int nodeIdx = 0;
 
-    int[MAX_STACK_SIZE] primitiveIndices;
-    Node[MAX_STACK_SIZE] stack;
-    int topStack = -1;
-    int topPrimivitiveIndices = 0;
-    Node nextNode = {0, 0};
-    push_stack(nextNode,stack, topStack);
+  int primitiveIndices[MAX_STACK_SIZE];
+  Node stack[MAX_STACK_SIZE];
+  int topStack = -1;
+  int topPrimivitiveIndices = 0;
+  Node nextNode = {0, 0};
+  push_stack(nextNode,stack, topStack);
 
-    while (topStack > -1) 
-    {
-      nextNode = pop_stack(stack, topStack);
-      // nodeIdx = int(pow(2, nextNode.level))  - 1 + nextNode.branch;
+  while (topStack > -1) 
+  {
+    nextNode = pop_stack(stack, topStack);
+    // nodeIdx = int(pow(2, nextNode.level))  - 1 + nextNode.branch;
 
-      int firstChildIdx = int(pow(2, nextNode.level+1)) -1 + (nextNode.branch*2);
+    int firstChildIdx = int(pow(2, nextNode.level + 1)) - 1 + (nextNode.branch * 2);
 
-      if (firstChildIdx < tlas.TLAS.length()) {
-        if (intersectAABB(rayO, rayD, tlas.TLAS[firstChildIdx])) {
-          Node newNode = {nextNode.level + 1, nextNode.branch * 2};
-          push_stack(newNode, stack, topStack);
-        }
-
-        if (intersectAABB(rayO, rayD, tlas.TLAS[firstChildIdx + 1])) {
-          Node newNode = {nextNode.level + 1, (nextNode.branch * 2) + 1};
-          push_stack(newNode, stack, topStack);
-        }
+    if (firstChildIdx < tlas.TLAS.length()) {
+      if (intersectAABB(rayO, rayD, tlas.TLAS[firstChildIdx])) {
+        Node newNode = {nextNode.level + 1, nextNode.branch * 2};
+        push_stack(newNode, stack, topStack);
       }
-      else {
-        primitiveIndices[topPrimivitiveIndices] = nextNode.branch * 2;
-        topPrimivitiveIndices += 1;
+
+      if (intersectAABB(rayO, rayD, tlas.TLAS[firstChildIdx + 1])) {
+        Node newNode = {nextNode.level + 1, (nextNode.branch * 2) + 1};
+        push_stack(newNode, stack, topStack);
       }
     }
+    else {
+      primitiveIndices[topPrimivitiveIndices] = nextNode.branch * 2;
+      topPrimivitiveIndices += 1;
+    }
+  }
 
     // TODO fill another array with index values of BLAS array and loop over it in this next part
 
@@ -262,7 +263,7 @@ void intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout float resT, in
 
     t1 = triangleIntersect(rayO, rayD, blas.BLAS[primitiveIndices[i]], uv);
 
-    if (primitiveIndices[i] + 1 < blas.BLAS.length() && blas.BLAS[primitiveIndices[i] + 1].point1.w > (0.0 + EPSILON)) {
+    if (primitiveIndices[i] + 1 < blas.BLAS.length() && blas.BLAS[primitiveIndices[i] + 1].point1.w > 0.0 + EPSILON) {
       t2 = triangleIntersect(rayO, rayD, blas.BLAS[primitiveIndices[i] + 1], uv);
     }
 
@@ -541,6 +542,7 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
 
 void main() {
 
+debugPrintfEXT("TESTTESTTEST*******");
   /*
   In order to fit the work into workgroups, some unnecessary threads are launched.
   We terminate those threads here. 
