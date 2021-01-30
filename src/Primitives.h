@@ -59,8 +59,8 @@ struct Mesh {
 
 struct BVH {
     glm::mat4 inverseTransform;
-    Material material;
-    alignas(16) NodeTLAS TLAS[1]; // bounding parameters
+    alignas(16) Material material;
+    NodeTLAS TLAS[1]; // bounding parameters
 //    NodeBLAS BLAS[1]; // shape primitives
 };
 

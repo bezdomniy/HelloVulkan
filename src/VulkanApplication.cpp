@@ -211,6 +211,7 @@ void VulkanApplication::updateUniformBuffers()
 void VulkanApplication::createShapes()
 {
     Primitives::Material mat{glm::vec4(0.537f, 0.831f, 0.914f, 1.f), 0.1f, 0.7f, 0.3f, 200};
+    Primitives::Material mat2{glm::vec4(0.637f, 0.231f, 0.114f, 1.f), 0.1f, 0.7f, 0.3f, 200};
 
     //    glm::mat4 t(1.0f);
 //        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(1.2,1.2,1.2));
@@ -223,13 +224,13 @@ void VulkanApplication::createShapes()
     //    Primitives::Shape s = Primitives::makeSphere(mat, sT);
     mesh = Primitives::makeMesh("../../assets/models/cube.obj", mat, sT, meshBufferSize);
     
-    std::tie(bvh,blas) = Primitives::makeBVH("../../assets/models/cube.obj", mat, sT, bvhBufferSize);
+    std::tie(bvh,blas) = Primitives::makeBVH("../../assets/models/dragon.obj", mat, sT, bvhBufferSize);
     blasBufferSize = blas.size() * sizeof(Primitives::NodeBLAS);
 
     //    bvhBufferSize += 16;
 
     glm::mat4 pT(1.0);
-    Primitives::Shape p = Primitives::makePlane(mat, pT);
+    Primitives::Shape p = Primitives::makePlane(mat2, pT);
 
     //    shapes.push_back(s);
     shapes.push_back(p);

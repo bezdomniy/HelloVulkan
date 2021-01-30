@@ -200,7 +200,7 @@ bool intersectAABB(in vec4 rayO, in vec4 rayD, in NodeTLAS aabb) {
   return !(tmin > tmax);
 }
 
-const int MAX_STACK_SIZE = 20;
+const int MAX_STACK_SIZE = 25;
 struct Node {
   int level;
   int branch;
@@ -222,10 +222,10 @@ void intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout float resT, in
   // int branch = 0;
   // int nodeIdx = 0;
 
-  int primitiveIndices[MAX_STACK_SIZE];
+  // int primitiveIndices[100];
   Node stack[MAX_STACK_SIZE];
   int topStack = -1;
-  int topPrimivitiveIndices = 0;
+  // int topPrimivitiveIndices = 0;
   Node nextNode = {0, 0};
   push_stack(nextNode,stack, topStack);
 
@@ -248,35 +248,55 @@ void intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout float resT, in
       }
     }
     else {
-      primitiveIndices[topPrimivitiveIndices] = nextNode.branch * 2;
-      topPrimivitiveIndices += 1;
+      // primitiveIndices[topPrimivitiveIndices] = nextNode.branch * 2;
+      // topPrimivitiveIndices += 1;
+      float t1 = -1.0;
+      float t2 = -1.0;
+      int primIdx = nextNode.branch * 2;
+
+      t1 = triangleIntersect(rayO, rayD, blas.BLAS[primIdx], uv);
+
+      if (primIdx + 1 < blas.BLAS.length() && blas.BLAS[primIdx + 1].point1.w > 0.0) {
+        t2 = triangleIntersect(rayO, rayD, blas.BLAS[primIdx + 1], uv);
+      }
+
+      if ((t1 > EPSILON) && (t1 < resT) && (t2 < 0 || (t1 < t2))) {
+        id = -(primIdx+1);
+        resT = t1;
+      }
+      else if ((t2 > EPSILON) && (t2 < resT))
+      {
+        id = -(primIdx + 2);
+        resT = t2;
+      }
     }
   }
 
     // TODO fill another array with index values of BLAS array and loop over it in this next part
+    
 
-  for (int i = 0; i < topPrimivitiveIndices; i++)
-  {    
-    float t1 = -1.0;
-    float t2 = -1.0;
-    // id = -branch;
+  // for (int i = 0; i < topPrimivitiveIndices; i++)
+  // {    
+  //   float t1 = -1.0;
+  //   float t2 = -1.0;
+  //   // id = -branch;
 
-    t1 = triangleIntersect(rayO, rayD, blas.BLAS[primitiveIndices[i]], uv);
+  //   t1 = triangleIntersect(rayO, rayD, blas.BLAS[primitiveIndices[i]], uv);
 
-    if (primitiveIndices[i] + 1 < blas.BLAS.length() && blas.BLAS[primitiveIndices[i] + 1].point1.w > 0.0 + EPSILON) {
-      t2 = triangleIntersect(rayO, rayD, blas.BLAS[primitiveIndices[i] + 1], uv);
-    }
+  //   if (primitiveIndices[i] + 1 < blas.BLAS.length() && blas.BLAS[primitiveIndices[i] + 1].point1.w > 0.0) {
+  //     t2 = triangleIntersect(rayO, rayD, blas.BLAS[primitiveIndices[i] + 1], uv);
+  //   }
 
-    if ((t1 > EPSILON) && (t1 < resT) && (t1 < t2)) {
-      id = -primitiveIndices[i];
-      resT = t1;
-    }
-    else if ((t2 > EPSILON) && (t2 < resT))
-    {
-      id = -(primitiveIndices[i] + 1);
-      resT = t2;
-    }
-  }
+  //   if ((t1 > EPSILON) && (t1 < resT) && (t2 < 0 || (t1 < t2))) {
+  //     id = -primitiveIndices[i];
+  //     resT = t1;
+  //   }
+  //   else if ((t2 > EPSILON) && (t2 < resT))
+  //   {
+  //     id = -(primitiveIndices[i] + 1);
+  //     resT = t2;
+  //   }
+  // }
 }
 
 int intersect(in vec4 rayO, in vec4 rayD, inout float resT, out vec2 uv)
@@ -509,7 +529,7 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
   }
 
   else {
-      HitParams hitParams = getHitParams(rayO, rayD, t, tlas.inverseTransform, 2, blas.BLAS[-objectID].normal1, blas.BLAS[-objectID].normal2, blas.BLAS[-objectID].normal3, uv);
+      HitParams hitParams = getHitParams(rayO, rayD, t, tlas.inverseTransform, 2, blas.BLAS[-(objectID+1)].normal1, blas.BLAS[-(objectID+1)].normal2, blas.BLAS[-(objectID+1)].normal3, uv);
 
       bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
       // bool shadowed = false;
