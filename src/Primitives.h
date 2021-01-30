@@ -11,6 +11,7 @@
 #include <vector>
 #include <utility>
 #include <limits>
+#include <iterator>
 
 namespace Primitives {
 struct Material {
@@ -59,7 +60,7 @@ struct Mesh {
 struct BVH {
     glm::mat4 inverseTransform;
     Material material;
-    NodeTLAS TLAS[1]; // bounding parameters
+    alignas(16) NodeTLAS TLAS[1]; // bounding parameters
 //    NodeBLAS BLAS[1]; // shape primitives
 };
 
@@ -310,85 +311,80 @@ void recursiveBuild(std::vector<NodeTLAS>& tlas, std::vector<NodeBLAS>& blas, st
 {
     int nShapes = end - start ;
     
-    uint32_t node = (std::pow(2, level) - 1) + branch;
+    uint32_t node = std::pow(2, level) + branch - 1;
+//    uint32_t node = (std::pow(2, level) - 1) + branch;
+    NodeBLAS emptyNode {glm::vec4(-1.f),glm::vec4(-1.f),glm::vec4(-1.f),glm::vec4(-1.f),glm::vec4(-1.f),glm::vec4(-1.f)};
     
-//    if (node >= triangleParamsUnsorted.size()/2) {
-//        return;
-//    }
+    NodeTLAS centroidBounds {
+        glm::vec4(std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),1.f),
+        glm::vec4(-std::numeric_limits<float>::infinity(),-std::numeric_limits<float>::infinity(),-std::numeric_limits<float>::infinity(),1.f)
+    };
     
-//    if (nShapes <= 2)
-//    {
-//        return;
-//    }
-//    else
-//    {
-        NodeTLAS centroidBounds {
-            glm::vec4(std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),1.f),
-            glm::vec4(-std::numeric_limits<float>::infinity(),-std::numeric_limits<float>::infinity(),-std::numeric_limits<float>::infinity(),1.f)
-        };
-        
-        for (auto it = triangleParamsUnsorted.begin() + start; it != triangleParamsUnsorted.begin() + end; ++it)
-        {
-            centroidBounds = mergeBounds(centroidBounds, blasBounds(*it));
-        };
-        
-        glm::vec4 diagonal = centroidBounds.second - centroidBounds.first;
-        uint32_t splitDimension;
-        
-        if (diagonal.x > diagonal.y && diagonal.x > diagonal.z)
-            splitDimension = 0;
-        else if (diagonal.y > diagonal.z)
-            splitDimension = 1;
-        else
-            splitDimension = 2;
-        
-        int mid = (start + end) / 2;
-        
-        if (centroidBounds.first[splitDimension] == centroidBounds.second[splitDimension])
-        {
+    for (auto it = triangleParamsUnsorted.begin() + start; it != triangleParamsUnsorted.begin() + end; ++it)
+    {
+        centroidBounds = mergeBounds(centroidBounds, blasBounds(*it));
+    };
+    
+    glm::vec4 diagonal = centroidBounds.second - centroidBounds.first;
+    uint32_t splitDimension;
+    
+    if (diagonal.x > diagonal.y && diagonal.x > diagonal.z)
+        splitDimension = 0;
+    else if (diagonal.y > diagonal.z)
+        splitDimension = 1;
+    else
+        splitDimension = 2;
+    
+//        int mid = (start + end) / 2;
+    
+    if (centroidBounds.first[splitDimension] == centroidBounds.second[splitDimension])
+    {
 //            TODO figure out if this bit is necessary.
 //            for (int i = start; i < end; ++i)
 //            {
 //                //                node->addChild(shapes.at(i));
 //
 //            }
-            return;
-            
+        return;
+        
+    }
+    else
+    {
+        int mid = (start + end) / 2;
+        std::nth_element(&triangleParamsUnsorted[start], &triangleParamsUnsorted[mid],
+                         &triangleParamsUnsorted[end],
+                         [splitDimension](const NodeBLAS &a, const NodeBLAS &b) {
+            return boundsCentroid(a)[splitDimension] < boundsCentroid(b)[splitDimension];
+        });
+        
+        tlas.at(node) = centroidBounds;
+        
+        if (nShapes > 2) {
+            recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, branch * 2, start, mid);
+            recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, (branch * 2) + 1, mid, end); //TODO check branch calc
         }
         else
         {
-//            mid = (start + end) / 2;
-            std::nth_element(&triangleParamsUnsorted[start], &triangleParamsUnsorted[mid],
-                             &triangleParamsUnsorted[end - 1] + 1,
-                             [splitDimension](const NodeBLAS &a, const NodeBLAS &b) {
-                return boundsCentroid(a)[splitDimension] < boundsCentroid(b)[splitDimension];
-            });
-            
-            tlas.at(node) = centroidBounds;
-            
-            if (nShapes > 2) {
-                recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, branch * 2, start, mid);
-                recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, (branch * 2) + 1, mid, end); //TODO check branch calc
+            blas.push_back(triangleParamsUnsorted.at(start));
+    //
+            if (nShapes == 2)
+            {
+                blas.push_back(triangleParamsUnsorted.at(start + 1));
             }
             else
             {
-                blas.push_back(triangleParamsUnsorted.at(start));
-        //
-                if (nShapes == 2)
-                {
-                    blas.push_back(triangleParamsUnsorted.at(start + 1));
-                }
-                else
-                {
-        //          If there is only one leaf node, just add it twice to make all inner nodes have 2 children
-                    blas.push_back(triangleParamsUnsorted.at(start));
-                }
+    //          If there is only one leaf node, just add it twice to make all inner nodes have 2 children
+//                    blas.push_back(triangleParamsUnsorted.at(start));
+//                  Instead of adding it twice, add node with w value 0 and check in shader
+                blas.push_back(emptyNode);
+                
+//                  TODO: need to use sorted triangleParams array instead of this push approach, but also need to track emptynodes
+                
+//                paddingIndices.push_back(((node-offset)*2)+1);
             }
-            
-            //            node->addChild(leftChild);
-            //            node->addChild(rightChild);
+            return;
         }
-//    }
+    }
     
     return;
 }
@@ -410,6 +406,8 @@ std::vector<NodeTLAS> buildTLAS(std::vector<NodeBLAS>& blas, std::vector<NodeBLA
     std::vector<NodeTLAS> tlas;
     tlas.resize(nextPowerOfTwo(triangleParamsUnsorted.size())-1);
     
+//    size_t offset = std::pow(2,std::floor(log2(tlas.size())))-1;
+    
     recursiveBuild(tlas,blas,triangleParamsUnsorted, 0, 0, 0, triangleParamsUnsorted.size());
     
     return tlas;
@@ -420,14 +418,22 @@ std::pair<BVH*,std::vector<NodeBLAS>> makeBVH(std::string const &path, Material&
     size_t blasSizeParams = triangleParamsUnsorted.size() * sizeof(NodeBLAS);
     
     std::vector<NodeBLAS> blas;
-    blas.reserve(triangleParamsUnsorted.size()); // needs to be more in case of 2 leaf padding
+    blas.reserve(nextPowerOfTwo(triangleParamsUnsorted.size())-1);
     
     std::vector<NodeTLAS> tlas = buildTLAS(blas,triangleParamsUnsorted);
     size_t tlasSizeParams = tlas.size() * sizeof(NodeTLAS);
     
-    size = sizeof(BVH) + tlasSizeParams;
+//    NodeBLAS emptyNode {glm::vec4(0.f),glm::vec4(0.f),glm::vec4(0.f),glm::vec4(0.f),glm::vec4(0.f),glm::vec4(0.f)};
+//    for (auto idx: paddingIndices) {
+//        auto it = triangleParamsUnsorted.begin();
+//        std::advance(it,idx);
+//        triangleParamsUnsorted.insert(it, emptyNode);
+//    }
     
-    char * ptr = new char[sizeof(BVH) - 1 + tlasSizeParams];
+//    size = sizeof(BVH) + tlasSizeParams;
+    size = sizeof(BVH) - sizeof(NodeTLAS) + tlasSizeParams;
+    
+    char * ptr = new char[size];
     BVH * bvh = reinterpret_cast<BVH*>(ptr);
     bvh->inverseTransform =glm::affineInverse(transform);
     bvh->material = material;
