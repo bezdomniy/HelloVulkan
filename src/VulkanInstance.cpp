@@ -39,13 +39,30 @@ void VulkanInstance::init() {
     createInfo.enabledExtensionCount = static_cast<uint32_t>(extensions.size());
     createInfo.ppEnabledExtensionNames = extensions.data();
 
-    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
+//    VkDebugUtilsMessengerCreateInfoEXT debugCreateInfo;
+    VkDebugReportCallbackCreateInfoEXT debugCreateInfo = {VK_STRUCTURE_TYPE_DEBUG_REPORT_CREATE_INFO_EXT};
     if (enableValidationLayers) {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames = validationLayers.data();
+//        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
+//        createInfo.ppEnabledLayerNames = validationLayers.data();
+//
+//        populateDebugMessengerCreateInfo(debugCreateInfo);
+//        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
+        
+        
+        debugCreateInfo.flags                              = VK_DEBUG_REPORT_ERROR_BIT_EXT | VK_DEBUG_REPORT_WARNING_BIT_EXT | VK_DEBUG_REPORT_INFORMATION_BIT_EXT | VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT | VK_DEBUG_REPORT_DEBUG_BIT_EXT;
+        debugCreateInfo.pfnCallback                        = debugCallback;
 
-        populateDebugMessengerCreateInfo(debugCreateInfo);
-        createInfo.pNext = (VkDebugUtilsMessengerCreateInfoEXT*) &debugCreateInfo;
+        createInfo.pNext = &debugCreateInfo;
+        
+        VkValidationFeatureEnableEXT enabled[] = {VK_VALIDATION_FEATURE_ENABLE_DEBUG_PRINTF_EXT};
+        VkValidationFeaturesEXT      features{VK_STRUCTURE_TYPE_VALIDATION_FEATURES_EXT};
+        features.disabledValidationFeatureCount = 0;
+        features.enabledValidationFeatureCount  = 1;
+        features.pDisabledValidationFeatures    = nullptr;
+        features.pEnabledValidationFeatures     = enabled;
+
+        features.pNext                          = createInfo.pNext;
+        createInfo.pNext                     = &features;
     } else {
         createInfo.enabledLayerCount = 0;
 
@@ -56,7 +73,7 @@ void VulkanInstance::init() {
         throw std::runtime_error("failed to create instance!");
     }
 
-    setupDebugMessenger();
+//    setupDebugMessenger();
 }
 
 void VulkanInstance::setupDebugMessenger() {
@@ -72,7 +89,7 @@ void VulkanInstance::setupDebugMessenger() {
 
 VulkanInstance::~VulkanInstance() {
     if (enableValidationLayers) {
-        DestroyDebugUtilsMessengerEXT(vkInstance, debugMessenger, nullptr);
+//        DestroyDebugUtilsMessengerEXT(vkInstance, debugMessenger, nullptr);
     }
 
     vkDestroyInstance(vkInstance, nullptr);

@@ -22,9 +22,32 @@ static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMesse
     }
 }
 
-static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback2(VkDebugUtilsMessageSeverityFlagBitsEXT messageSeverity, VkDebugUtilsMessageTypeFlagsEXT messageType, const VkDebugUtilsMessengerCallbackDataEXT* pCallbackData, void* pUserData) {
     std::cerr << "validation layer: " << pCallbackData->pMessage << std::endl;
 
+    return VK_FALSE;
+}
+
+static VKAPI_ATTR VkBool32 VKAPI_CALL debugCallback(VkDebugReportFlagsEXT flags, VkDebugReportObjectTypeEXT type,
+                                                     uint64_t object, size_t location, int32_t message_code,
+                                                     const char *layer_prefix, const char *message, void *user_data)
+{
+    if (flags & VK_DEBUG_REPORT_ERROR_BIT_EXT)
+    {
+        std::cerr << "Validation Layer: Error: " << layer_prefix << ": " << message << std::endl;
+    }
+    else if (flags & VK_DEBUG_REPORT_WARNING_BIT_EXT)
+    {
+        std::cerr << "Validation Layer: Warning: " << layer_prefix << ": " << message << std::endl;
+    }
+    else if (flags & VK_DEBUG_REPORT_PERFORMANCE_WARNING_BIT_EXT)
+    {
+        std::cerr << "Validation Layer: Performance warning: " << layer_prefix << ": " << message << std::endl;
+    }
+    else
+    {
+        std::cerr << "Validation Layer: Information: " << layer_prefix << ": " << message << std::endl;
+    }
     return VK_FALSE;
 }
 
@@ -33,7 +56,7 @@ static void populateDebugMessengerCreateInfo(VkDebugUtilsMessengerCreateInfoEXT&
     createInfo.sType = VK_STRUCTURE_TYPE_DEBUG_UTILS_MESSENGER_CREATE_INFO_EXT;
     createInfo.messageSeverity = VK_DEBUG_UTILS_MESSAGE_SEVERITY_VERBOSE_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_WARNING_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_SEVERITY_ERROR_BIT_EXT;
     createInfo.messageType = VK_DEBUG_UTILS_MESSAGE_TYPE_GENERAL_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_VALIDATION_BIT_EXT | VK_DEBUG_UTILS_MESSAGE_TYPE_PERFORMANCE_BIT_EXT;
-    createInfo.pfnUserCallback = debugCallback;
+    createInfo.pfnUserCallback = debugCallback2;
 }
 
 static bool checkValidationLayerSupport() {

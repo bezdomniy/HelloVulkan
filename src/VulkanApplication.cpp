@@ -200,7 +200,7 @@ void VulkanApplication::updateUniformBuffers()
     ubo.lightPos.z = -10.0f;
     ubo.lightPos.w = 1.0f; //TODO check if this is right - should it be 0?
 
-    ubo.camera = Primitives::makeCamera(glm::vec4(0.f, 1.5f, -5.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 0.f), 800, 600, 1.0472);
+    ubo.camera = Primitives::makeCamera(glm::vec4(1.f, 3.f, -5.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 0.f), 800, 600, 1.0472);
 
     auto &uniformBuffer = device.getBuffer(1);
     uniformBuffer.map();
@@ -223,7 +223,7 @@ void VulkanApplication::createShapes()
     //    Primitives::Shape s = Primitives::makeSphere(mat, sT);
     mesh = Primitives::makeMesh("../../assets/models/cube.obj", mat, sT, meshBufferSize);
     
-    std::tie(bvh,blas) = Primitives::makeBVH("../../assets/models/armadillo2.obj", mat, sT, bvhBufferSize);
+    std::tie(bvh,blas) = Primitives::makeBVH("../../assets/models/cube.obj", mat, sT, bvhBufferSize);
     blasBufferSize = blas.size() * sizeof(Primitives::NodeBLAS);
 
     //    bvhBufferSize += 16;
@@ -274,15 +274,15 @@ int main()
     app.uniformBufferSize = sizeof(UBOCompute);
     //    app.uniformBufferSize = 0;
 
-    try
-    {
+//    try
+//    {
         app.run();
-    }
-    catch (const std::exception &e)
-    {
-        std::cerr << "### " << e.what() << std::endl;
-        return EXIT_FAILURE;
-    }
+//    }
+//    catch (const std::exception &e)
+//    {
+//        std::cerr << "### " << e.what() << std::endl;
+//        return EXIT_FAILURE;
+//    }
 
     return EXIT_SUCCESS;
 }
