@@ -237,15 +237,36 @@ std::vector<NodeBLAS> parseObjFile(std::string const &path) {
     triangleParams.reserve((vertexIndices.size() / 3));
     
     for (unsigned int i = 0; i < vertexIndices.size(); i += 3) {
-        NodeBLAS nextNode {
-            temp_vertices[vertexIndices[i] - 1],
-            temp_vertices[vertexIndices[i + 1] - 1],
-            temp_vertices[vertexIndices[i+ 2] - 1],
-            temp_normals[normalIndices[i] - 1],
-            temp_normals[normalIndices[i + 1] - 1],
-            temp_normals[normalIndices[i + 2] - 1]
+        NodeBLAS nextNode = {};
+        
+        if (temp_normals.empty()) {
+            glm::vec3 e1 = temp_vertices[vertexIndices[i + 1] - 1] - temp_vertices[vertexIndices[i] - 1];
+            glm::vec3 e2 = temp_vertices[vertexIndices[i+ 2] - 1] - temp_vertices[vertexIndices[i] - 1];
+            glm::vec4 normal = glm::vec4(glm::normalize(glm::cross(e2, e1)), 0.0);
             
-        };
+            nextNode = NodeBLAS {
+                temp_vertices[vertexIndices[i] - 1],
+                temp_vertices[vertexIndices[i + 1] - 1],
+                temp_vertices[vertexIndices[i+ 2] - 1],
+                normal,
+                normal,
+                normal
+            };
+        }
+        else {
+            nextNode = NodeBLAS {
+                temp_vertices[vertexIndices[i] - 1],
+                temp_vertices[vertexIndices[i + 1] - 1],
+                temp_vertices[vertexIndices[i+ 2] - 1],
+                temp_normals[normalIndices[i] - 1],
+                temp_normals[normalIndices[i + 1] - 1],
+                temp_normals[normalIndices[i + 2] - 1]
+                
+            };
+        }
+        
+
+
         triangleParams.push_back(nextNode);
         //        triangleParams.push_back(temp_vertices[vertexIndices[i] - 1]);
         //        triangleParams.push_back(temp_vertices[vertexIndices[i + 1] - 1]);
@@ -307,13 +328,15 @@ glm::vec4 boundsCentroid(const NodeBLAS& shape)
     return .5f * blasBounds(shape).first + .5f * blasBounds(shape).second;
 }
 
-void recursiveBuild(std::vector<NodeTLAS>& tlas, std::vector<NodeBLAS>& blas, std::vector<NodeBLAS>& triangleParamsUnsorted, uint32_t level, uint32_t branch, uint32_t start, uint32_t end)
+void recursiveBuild(std::vector<NodeTLAS>& tlas, std::vector<NodeBLAS>& blas, std::vector<NodeBLAS>& triangleParamsUnsorted, uint32_t level, uint32_t branch, uint32_t start, uint32_t end,uint32_t tlasHeight)
 {
     int nShapes = end - start ;
     
     uint32_t node = std::pow(2, level) + branch - 1;
 //    uint32_t node = (std::pow(2, level) - 1) + branch;
     NodeBLAS emptyNode {glm::vec4(-1.f),glm::vec4(-1.f),glm::vec4(-1.f),glm::vec4(-1.f),glm::vec4(-1.f),glm::vec4(-1.f)};
+    NodeTLAS emptyBounds {glm::vec4(std::numeric_limits<float>::min()),glm::vec4(std::numeric_limits<float>::min())};
+    NodeTLAS totalBounds {glm::vec4(std::numeric_limits<float>::min()),glm::vec4(std::numeric_limits<float>::max())};
     
     NodeTLAS centroidBounds {
         glm::vec4(std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),std::numeric_limits<float>::infinity(),1.f),
@@ -360,8 +383,8 @@ void recursiveBuild(std::vector<NodeTLAS>& tlas, std::vector<NodeBLAS>& blas, st
         tlas.at(node) = centroidBounds;
         
         if (nShapes > 2) {
-            recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, branch * 2, start, mid);
-            recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, (branch * 2) + 1, mid, end); //TODO check branch calc
+            recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, branch * 2, start, mid, tlasHeight);
+            recursiveBuild(tlas,blas,triangleParamsUnsorted, level+1, (branch * 2) + 1, mid, end, tlasHeight); //TODO check branch calc
         }
         else
         {
@@ -382,6 +405,21 @@ void recursiveBuild(std::vector<NodeTLAS>& tlas, std::vector<NodeBLAS>& blas, st
                 
 //                paddingIndices.push_back(((node-offset)*2)+1);
             }
+            
+//            In case on unbalanced tree, add dummy branches
+            if (level < tlasHeight) {
+                level += 1;
+                branch *= 2;
+                
+                uint32_t dummyNode = std::pow(2, level) + branch - 1;
+                
+                tlas.at(dummyNode) = totalBounds;
+                tlas.at(dummyNode + 1) = emptyBounds;
+                
+                blas.push_back(emptyNode);
+                blas.push_back(emptyNode);
+            }
+            
             return;
         }
     }
@@ -401,14 +439,27 @@ uint32_t nextPowerOfTwo(uint32_t v)
     return v;
 }
 
+static uint32_t log2int (uint32_t val) {
+    if (val == 0) return std::numeric_limits<uint32_t>::max();
+    if (val == 1) return 0;
+    uint32_t ret = 0;
+    while (val > 1) {
+        val >>= 1;
+        ret++;
+    }
+    return ret;
+}
+
 std::vector<NodeTLAS> buildTLAS(std::vector<NodeBLAS>& blas, std::vector<NodeBLAS>& triangleParamsUnsorted)
 {
     std::vector<NodeTLAS> tlas;
     tlas.resize(nextPowerOfTwo(triangleParamsUnsorted.size())-1);
     
+    uint32_t tlasHeight = log2int(triangleParamsUnsorted.size());
+    
 //    size_t offset = std::pow(2,std::floor(log2(tlas.size())))-1;
     
-    recursiveBuild(tlas,blas,triangleParamsUnsorted, 0, 0, 0, triangleParamsUnsorted.size());
+    recursiveBuild(tlas,blas,triangleParamsUnsorted, 0, 0, 0, triangleParamsUnsorted.size(), tlasHeight);
     
     return tlas;
 }

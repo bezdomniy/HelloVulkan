@@ -18,8 +18,8 @@
 #include <fstream>
 #include <vector>
 
-const uint32_t WIDTH = 800;
-const uint32_t HEIGHT = 600;
+const uint32_t WIDTH = 1600;
+const uint32_t HEIGHT = 1200;
 const uint32_t WORKGROUP_SIZE = 32;
 
 const uint64_t DEFAULT_FENCE_TIMEOUT = 100000000000;

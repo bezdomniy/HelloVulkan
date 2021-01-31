@@ -200,7 +200,7 @@ void VulkanApplication::updateUniformBuffers()
     ubo.lightPos.z = -10.0f;
     ubo.lightPos.w = 1.0f; //TODO check if this is right - should it be 0?
 
-    ubo.camera = Primitives::makeCamera(glm::vec4(1.f, 3.f, -5.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 0.f), 800, 600, 1.0472);
+    ubo.camera = Primitives::makeCamera(glm::vec4(1.f, 3.f, -5.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 1.f), glm::vec4(0.f, 1.f, 0.f, 0.f), WIDTH, HEIGHT, 1.0472f);
 
     auto &uniformBuffer = device.getBuffer(1);
     uniformBuffer.map();
@@ -215,8 +215,9 @@ void VulkanApplication::createShapes()
 
     //    glm::mat4 t(1.0f);
 //        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(1.2,1.2,1.2));
-    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.6, 0.6, 0.6));
+//    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.6, 0.6, 0.6));
 //        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.003,0.003,0.003));
+    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.02,0.02,0.02));
     glm::mat4 translate = glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 1.f, 0.5f));
     glm::mat4 sT = translate * scale;
     
@@ -224,7 +225,7 @@ void VulkanApplication::createShapes()
     //    Primitives::Shape s = Primitives::makeSphere(mat, sT);
     mesh = Primitives::makeMesh("../../assets/models/cube.obj", mat, sT, meshBufferSize);
     
-    std::tie(bvh,blas) = Primitives::makeBVH("../../assets/models/dragon.obj", mat, sT, bvhBufferSize);
+    std::tie(bvh,blas) = Primitives::makeBVH("../../assets/models/armadillo.obj", mat, sT, bvhBufferSize);
     blasBufferSize = blas.size() * sizeof(Primitives::NodeBLAS);
 
     //    bvhBufferSize += 16;

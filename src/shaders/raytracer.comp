@@ -1,6 +1,6 @@
 #version 450
 #extension GL_ARB_separate_shader_objects : enable
-#extension GL_EXT_debug_printf : enable
+// #extension GL_EXT_debug_printf : enable
 
 // #define WIDTH 800
 // #define HEIGHT 600
@@ -11,7 +11,7 @@
 
 const float INFINITY = 1. / 0.;
 
-layout (local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE, local_size_z = 1 ) in;
+layout (local_size_x = WORKGROUP_SIZE, local_size_y = WORKGROUP_SIZE) in;
 
 struct Pixel{
   vec4 value;
@@ -148,7 +148,8 @@ float triangleIntersect(in vec4 rayO, in vec4 rayD,in NodeBLAS triangle, out vec
     vec3 dirCrossE2 = cross(vec3(rayD), e2);
     float det = dot(e1, dirCrossE2);
     if (abs(det) < EPSILON) {
-        return -1.0;}
+        return -1.0;
+    }
 
     float f = 1.0 / det;
     vec3 p1ToOrigin = vec3(rayO - triangle.point1);
@@ -261,7 +262,7 @@ void intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout float resT, in
       }
 
       if ((t1 > EPSILON) && (t1 < resT) && (t2 < 0 || (t1 < t2))) {
-        id = -(primIdx+1);
+        id = -(primIdx + 1);
         resT = t1;
       }
       else if ((t2 > EPSILON) && (t2 < resT))
@@ -562,7 +563,7 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
 
 void main() {
 
-debugPrintfEXT("TESTTESTTEST*******");
+// debugPrintfEXT("TESTTESTTEST*******");
   /*
   In order to fit the work into workgroups, some unnecessary threads are launched.
   We terminate those threads here. 
