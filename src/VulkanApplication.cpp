@@ -1,4 +1,4 @@
-#include "VulkanApplication.h"
+﻿#include "VulkanApplication.h"
 
 void VulkanApplication::initVulkan()
 {
@@ -13,19 +13,19 @@ void VulkanApplication::initVulkan()
     device.addBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBufferSize);
 
     createShapes();
-    
+
     VkCommandBuffer copyCmd;
     VkBufferCopy copyRegion = {};
-    
+
     addSSBOBuffer(shapes.data(), shapesBufferSize, copyCmd, copyRegion);
     addSSBOBuffer(mesh, meshBufferSize, copyCmd, copyRegion);
-    
+
     addSSBOBuffer(bvh, bvhBufferSize, copyCmd, copyRegion);
     addSSBOBuffer(blas.data(), blasBufferSize, copyCmd, copyRegion);
 
-    std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER,VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
+    std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
 
-    pipeline.init(device.getBuffers(), bufferTypes, "../../src/shaders/comp.spv");
+    pipeline.init(device.getBuffers(), bufferTypes, "C:/dev/HelloVulkan/src/shaders/comp.spv");
 
     createCommandBuffer(commandBuffer);
     finaliseMainCommandBuffer();
@@ -45,8 +45,8 @@ void VulkanApplication::cleanup()
     if (mesh)
     {
         //        free(bvh->nodes);
-//        free(bvh);
-        delete [] mesh;
+        //        free(bvh);
+        delete[] mesh;
     }
 
     for (auto &buf : device.getBuffers())
@@ -58,7 +58,6 @@ void VulkanApplication::cleanup()
 
     pipeline.destroy();
     vkDestroyDevice(device.getLogical(), nullptr);
-    
 }
 
 void VulkanApplication::createCommandPool()
@@ -183,9 +182,11 @@ void VulkanApplication::saveRenderedImage()
     vkUnmapMemory(device.getLogical(), device.getBuffer(0).getMemory());
 
     // Now we save the acquired color data to a .png.
-    unsigned error = lodepng::encode("mandelbrot.png", image, WIDTH, HEIGHT);
-    if (error)
-        printf("encoder error %d: %s", error, lodepng_error_text(error));
+    //unsigned error = lodepng::encode("mandelbrot.png", image, WIDTH, HEIGHT);
+    //if (error)
+    //    printf("encoder error %d: %s", error, lodepng_error_text(error));
+
+    ImageWriter::writeToPPM("mandelbrot.ppm", image, WIDTH, HEIGHT);
 }
 
 void VulkanApplication::updateUniformBuffers()
@@ -214,18 +215,18 @@ void VulkanApplication::createShapes()
     Primitives::Material mat2{glm::vec4(0.637f, 0.231f, 0.114f, 1.f), 0.1f, 0.7f, 0.3f, 200};
 
     //    glm::mat4 t(1.0f);
-//        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(1.2,1.2,1.2));
-//    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.6, 0.6, 0.6));
-//        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.003,0.003,0.003));
-    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.02,0.02,0.02));
+    //        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(1.2,1.2,1.2));
+    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.6, 0.6, 0.6));
+    //        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.003,0.003,0.003));
+    // glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.02, 0.02, 0.02));
     glm::mat4 translate = glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 1.f, 0.5f));
     glm::mat4 sT = translate * scale;
-    
-//    glm::mat4 sT(1.0);
+
+    //    glm::mat4 sT(1.0);
     //    Primitives::Shape s = Primitives::makeSphere(mat, sT);
-    mesh = Primitives::makeMesh("../../assets/models/cube.obj", mat, sT, meshBufferSize);
-    
-    std::tie(bvh,blas) = Primitives::makeBVH("../../assets/models/armadillo.obj", mat, sT, bvhBufferSize);
+    mesh = Primitives::makeMesh("C:/dev/HelloVulkan/assets/models/cube.obj", mat, sT, meshBufferSize);
+
+    std::tie(bvh, blas) = Primitives::makeBVH("C:/dev/HelloVulkan/assets/models/armadillo.obj", mat, sT, bvhBufferSize);
     blasBufferSize = blas.size() * sizeof(Primitives::NodeBLAS);
 
     //    bvhBufferSize += 16;
@@ -239,25 +240,44 @@ void VulkanApplication::createShapes()
     //    bvhBufferSize = sizeof(*bvh) + 16; //TODO is this plus 16, and why is size so low
 }
 
-void VulkanApplication::addSSBOBuffer(void* buffer, size_t bufferSize, VkCommandBuffer copyCmd, VkBufferCopy copyRegion) {
+void VulkanApplication::addSSBOBuffer(void *buffer, size_t bufferSize, VkCommandBuffer &copyCmd, VkBufferCopy copyRegion)
+{
     device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT | VK_BUFFER_USAGE_TRANSFER_DST_BIT, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT, bufferSize);
 
     device.addBuffer(VK_BUFFER_USAGE_TRANSFER_SRC_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, bufferSize, buffer);
 
     createCommandBuffer(copyCmd);
     copyRegion.size = bufferSize;
-    vkCmdCopyBuffer(copyCmd, device.getBuffer(device.getBuffers().size()-1).getBuffer(), device.getBuffer(device.getBuffers().size()-2).getBuffer(), 1, &copyRegion);
+    vkCmdCopyBuffer(copyCmd, device.getBuffer(device.getBuffers().size() - 1).getBuffer(), device.getBuffer(device.getBuffers().size() - 2).getBuffer(), 1, &copyRegion);
     runCommandBuffer(copyCmd, true, true);
 
-    device.getBuffer(device.getBuffers().size()-1).destroy();
+    device.getBuffer(device.getBuffers().size() - 1).destroy();
     device.getBuffers().pop_back();
 }
 
+// #include <chrono>
+// using namespace std::chrono;
+
 void VulkanApplication::run()
 {
+    // auto start = high_resolution_clock::now();
     initVulkan();
+    // auto stop = high_resolution_clock::now();
+    // auto duration = duration_cast<seconds>(stop - start);
+    // std::cout << duration.count() << std::endl;
+
+    // auto start = high_resolution_clock::now();
     mainLoop();
+    // auto stop = high_resolution_clock::now();
+    // auto duration = duration_cast<microseconds>(stop - start);
+    // std::cout << duration.count() << std::endl;
+
+    // start = high_resolution_clock::now();
     cleanup();
+
+    // stop = high_resolution_clock::now();
+    // duration = duration_cast<microseconds>(stop - start);
+    // std::cout << duration.count() << std::endl;
 }
 
 VulkanApplication::VulkanApplication() : pipeline(device.getLogical())
@@ -276,15 +296,15 @@ int main()
     app.uniformBufferSize = sizeof(UBOCompute);
     //    app.uniformBufferSize = 0;
 
-//    try
-//    {
-        app.run();
-//    }
-//    catch (const std::exception &e)
-//    {
-//        std::cerr << "### " << e.what() << std::endl;
-//        return EXIT_FAILURE;
-//    }
+    //    try
+    //    {
+    app.run();
+    //    }
+    //    catch (const std::exception &e)
+    //    {
+    //        std::cerr << "### " << e.what() << std::endl;
+    //        return EXIT_FAILURE;
+    //    }
 
     return EXIT_SUCCESS;
 }

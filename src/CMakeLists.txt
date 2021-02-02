@@ -1,10 +1,10 @@
 ﻿# CMakeList.txt : CMake project for HelloVulkan, include source and define
 # project specific logic here.
 #
-cmake_minimum_required (VERSION 3.8)
+# cmake_minimum_required (VERSION 3.8)
 
-set (CMAKE_CXX_STANDARD 17)
-set(CMAKE_CXX_STANDARD_REQUIRED ON)
+# set (CMAKE_CXX_STANDARD 17)
+# set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
 # set(ENV{VK_ICD_FILENAMES} "/Users/iliachibaev/dev/tools/vulkansdk/macOS/share/vulkan/icd.d/MoltenVK_icd.json")
 # set(VK_LAYER_PATH "/Users/iliachibaev/dev/tools/vulkansdk/macOS/share/vulkan/explicit_layer.d")

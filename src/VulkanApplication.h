@@ -11,6 +11,7 @@
 #include "Primitives.h"
 
 #include "lodepng.h"
+#include "ImageWriter.h"
 
 #include <glm/glm.hpp>
 
@@ -75,7 +76,7 @@ private:
     void destroyCommandBuffer(VkCommandBuffer &cmdBuffer, bool end);
     void finaliseMainCommandBuffer();
     //    void flushCommandBuffer(VkCommandBuffer commandBuffer, bool free);
-    void addSSBOBuffer(void* buffer, size_t bufferSize, VkCommandBuffer copyCmd, VkBufferCopy copyRegion);
+    void addSSBOBuffer(void* buffer, size_t bufferSize, VkCommandBuffer& copyCmd, VkBufferCopy copyRegion);
 
     void runCommandBuffer(VkCommandBuffer commandBuffer, bool end, bool free);
 
