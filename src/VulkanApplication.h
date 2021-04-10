@@ -9,6 +9,7 @@
 #include "VulkanPipeline.h"
 
 #include "Primitives.h"
+#include "Window.h"
 
 #include "lodepng.h"
 #include "ImageWriter.h"
@@ -19,11 +20,10 @@
 #include <fstream>
 #include <vector>
 
-const uint32_t WIDTH = 1600;
-const uint32_t HEIGHT = 1200;
+const uint32_t WIDTH = 800;
+const uint32_t HEIGHT = 600;
 const uint32_t WORKGROUP_SIZE = 32;
 
-const uint64_t DEFAULT_FENCE_TIMEOUT = 100000000000;
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -61,6 +61,7 @@ public:
 
 private:
     VulkanInstance instance;
+    Window window;
     VulkanDevice device;
     VulkanPipeline pipeline;
 
@@ -71,14 +72,12 @@ private:
     void initVulkan();
     void mainLoop();
     void cleanup();
-    void createCommandPool();
-    void createCommandBuffer(VkCommandBuffer &cmdBuffer);
-    void destroyCommandBuffer(VkCommandBuffer &cmdBuffer, bool end);
+
     void finaliseMainCommandBuffer();
     //    void flushCommandBuffer(VkCommandBuffer commandBuffer, bool free);
     void addSSBOBuffer(void* buffer, size_t bufferSize, VkCommandBuffer& copyCmd, VkBufferCopy copyRegion);
 
-    void runCommandBuffer(VkCommandBuffer commandBuffer, bool end, bool free);
+    
 
     void saveRenderedImage();
 

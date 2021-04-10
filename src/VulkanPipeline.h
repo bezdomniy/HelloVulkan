@@ -18,7 +18,7 @@ private:
     VkPipelineCache pipelineCache;
     
     void createDescriptorPool();
-    void createDescriptorSet(std::vector<VulkanBuffer>& buffers, std::vector<VkDescriptorType>& types);
+    void createDescriptorSet(std::vector<VulkanBuffer>& buffers, std::vector<VkDescriptorType>& types, const VkDescriptorImageInfo& imageDescriptorInfo);
     void createDescriptorSetLayout(std::vector<VkDescriptorType>& types);
     void createPipelineLayout();
     void createPipeline();
@@ -32,7 +32,7 @@ public:
     ~VulkanPipeline();
     void destroy();
     operator VkPipeline() const { return pipeline; };
-    void init(std::vector<VulkanBuffer>& buffers, std::vector<VkDescriptorType>& types, const std::string& shaderPath);
+    void init(std::vector<VulkanBuffer>& buffers, std::vector<VkDescriptorType>& types, const VkDescriptorImageInfo& imageDescriptorInfo, const std::string& shaderPath);
     
     const VkPipelineLayout& getPipelineLayout();
     const VkDescriptorSet& getDescriptorSet();

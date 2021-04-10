@@ -18,11 +18,11 @@ void VulkanPipeline::destroy() {
     vkDestroyDescriptorSetLayout(device, descriptorSetLayout, nullptr);
 }
 
-void VulkanPipeline::init(std::vector<VulkanBuffer>& buffers, std::vector<VkDescriptorType>& types, const std::string& shaderPath) {
+void VulkanPipeline::init(std::vector<VulkanBuffer>& buffers, std::vector<VkDescriptorType>& types, const VkDescriptorImageInfo& imageDescriptorInfo, const std::string& shaderPath) {
     createDescriptorPool();
     createDescriptorSetLayout(types);
     createPipelineLayout();
-    createDescriptorSet(buffers, types);
+    createDescriptorSet(buffers, types, imageDescriptorInfo);
     createShader(shaderPath);
     createPipelineCache();
     createPipeline();
@@ -34,7 +34,7 @@ void VulkanPipeline::createDescriptorPool() {
     uniformDescriptorPoolSize.descriptorCount = 1;
     
     VkDescriptorPoolSize imageDescriptorPoolSize = {}; // For output image
-    imageDescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_BUFFER;
+    imageDescriptorPoolSize.type = VK_DESCRIPTOR_TYPE_STORAGE_IMAGE;
     imageDescriptorPoolSize.descriptorCount = 1;
     
     VkDescriptorPoolSize primitivesDescriptorPoolSize = {}; // For buffers of shape primitives
@@ -55,7 +55,7 @@ void VulkanPipeline::createDescriptorPool() {
     }
 }
 
-void VulkanPipeline::createDescriptorSet(std::vector<VulkanBuffer>& buffers, std::vector<VkDescriptorType>& types) {
+void VulkanPipeline::createDescriptorSet(std::vector<VulkanBuffer>& buffers, std::vector<VkDescriptorType>& types, const VkDescriptorImageInfo& imageDescriptorInfo) {
     /*
     With the pool allocated, we can now allocate the descriptor set.
     */
@@ -71,16 +71,22 @@ void VulkanPipeline::createDescriptorSet(std::vector<VulkanBuffer>& buffers, std
     }
 
     std::vector<VkWriteDescriptorSet> computeWriteDescriptorSets;
-    computeWriteDescriptorSets.reserve(buffers.size());
+    computeWriteDescriptorSets.reserve(types.size());
     
-    for (int i = 0; i < buffers.size(); i++) {
+    for (int i = 0; i < types.size(); i++) {
         VkWriteDescriptorSet writeDescriptorSet = {};
         writeDescriptorSet.sType = VK_STRUCTURE_TYPE_WRITE_DESCRIPTOR_SET;
         writeDescriptorSet.dstSet = descriptorSet; // write to this descriptor set.
         writeDescriptorSet.dstBinding = i; // write to the first, and only binding.
         writeDescriptorSet.descriptorCount = 1; // update a single descriptor.
         writeDescriptorSet.descriptorType = types.at(i); // storage buffer.
-        writeDescriptorSet.pBufferInfo = &buffers.at(i).getDescriptor();
+        
+        if (i == 0) {
+            writeDescriptorSet.pImageInfo = &imageDescriptorInfo;
+        }
+        else {
+            writeDescriptorSet.pBufferInfo = &buffers.at(i - 1).getDescriptor();
+        }
         
         computeWriteDescriptorSets.push_back(writeDescriptorSet);
     }

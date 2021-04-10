@@ -323,6 +323,7 @@ namespace Primitives
         return ret;
     }
 
+    // TODO: prepopulate this in another array so you dont have keep recalculating
     NodeTLAS blasBounds(const NodeBLAS node)
     {
         glm::vec4 min(std::min({node.point1.x, node.point2.x, node.point3.x}),
@@ -348,7 +349,7 @@ namespace Primitives
         //    uint32_t node = (std::pow(2, level) - 1) + branch;
         NodeBLAS emptyNode{glm::vec4(-1.f), glm::vec4(-1.f), glm::vec4(-1.f), glm::vec4(-1.f), glm::vec4(-1.f), glm::vec4(-1.f)};
         NodeTLAS emptyBounds{glm::vec4(std::numeric_limits<float>::min()), glm::vec4(std::numeric_limits<float>::min())};
-//        NodeTLAS totalBounds{glm::vec4(std::numeric_limits<float>::min()), glm::vec4(std::numeric_limits<float>::max())};
+        //        NodeTLAS totalBounds{glm::vec4(std::numeric_limits<float>::min()), glm::vec4(std::numeric_limits<float>::max())};
 
         NodeTLAS centroidBounds{
             glm::vec4(std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity(), std::numeric_limits<float>::infinity(), 1.f),
@@ -385,14 +386,14 @@ namespace Primitives
         {
             int mid = (start + end) / 2;
             std::nth_element(&triangleParamsUnsorted[start], &triangleParamsUnsorted[mid],
-                             &triangleParamsUnsorted[end-1]+1,
+                             &triangleParamsUnsorted[end - 1] + 1,
                              [splitDimension](const NodeBLAS &a, const NodeBLAS &b) {
                                  return boundsCentroid(a)[splitDimension] < boundsCentroid(b)[splitDimension];
                              });
 
             uint32_t node = std::pow(2, level) + branch - 1;
             tlas.at(node) = centroidBounds;
-            
+
             int nShapes = end - start;
 
             if (nShapes > 2)
@@ -433,7 +434,6 @@ namespace Primitives
 
                     blas.push_back(emptyNode);
                     blas.push_back(emptyNode);
-                    
                 }
 
                 return;

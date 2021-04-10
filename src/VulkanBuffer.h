@@ -10,28 +10,29 @@
 #include <vulkan/vulkan.h>
 #include <iostream>
 
-class VulkanBuffer {
+class VulkanBuffer
+{
 private:
     VkBuffer buffer;
     VkDeviceMemory memory;
     VkDescriptorBufferInfo descriptorBufferInfo;
-    
-    VkDevice& device;
-    VkPhysicalDevice& physicalDevice;
-    
+
+    VkDevice &device;
+    VkPhysicalDevice &physicalDevice;
+
 public:
-    VulkanBuffer(VkDevice& parentDevice, VkPhysicalDevice& parentPhysicalDevice);
-    void init(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data = nullptr);
+    VulkanBuffer(VkDevice &parentDevice, VkPhysicalDevice &parentPhysicalDevice);
+    void init(VkDeviceSize size, void *data = nullptr);
     virtual ~VulkanBuffer();
-    
+
     void destroy();
-    
+
     VkResult map(VkDeviceSize size = VK_WHOLE_SIZE, VkDeviceSize offset = 0);
     void unmap();
-    
-    void* mapped = nullptr;
-    
-    VkBuffer& getBuffer();
-    VkDeviceMemory& getMemory();
-    VkDescriptorBufferInfo& getDescriptor();
+
+    void *mapped = nullptr;
+
+    VkBuffer &getBuffer();
+    VkDeviceMemory &getMemory();
+    VkDescriptorBufferInfo &getDescriptor();
 };
