@@ -12,6 +12,7 @@ _deps
 /.vs
 /out/build
 /build
+/buildXcode
 /HelloVulkan.xcodeproj
 **/HelloVulkan.build/**
 *.spv

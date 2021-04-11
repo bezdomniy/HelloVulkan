@@ -17,10 +17,12 @@ struct Pixel{
   vec4 value;
 };
 
-layout(std140, binding = 0) buffer buf
-{
-   Pixel imageData[];
-};
+// layout(std140, binding = 0) buffer buf
+// {
+//    Pixel imageData[];
+// };
+
+layout (binding = 0, rgba32f) uniform writeonly image2D imageData;
 
 struct Camera 
 {
@@ -166,39 +168,40 @@ float triangleIntersect(in vec4 rayO, in vec4 rayD,in NodeBLAS triangle, out vec
     return f * dot(e2, originCrossE1);
 }
 
-void checkAxis(in float origin, in float direction, in float lowerBound, in float upperBound, out float min, out float max)
-{
-  float tmin_numerator = lowerBound - origin;
-  float tmax_numerator = upperBound - origin;
-
-  if (abs(direction) >= EPSILON)
-  {
-    min = tmin_numerator / direction;
-    max = tmax_numerator / direction;
-  }
-  else
-  {
-    min = tmin_numerator * INFINITY;
-    max = tmax_numerator * INFINITY;
-  }
-  if (min > max) 
-  {
-    float temp = max;
-    max = min;
-    min = temp;
-  }
-}
 
 bool intersectAABB(in vec4 rayO, in vec4 rayD, in NodeTLAS aabb) {
-  float xmin, xmax, ymin, ymax, zmin, zmax;
-  checkAxis(rayO.x, rayD.x, aabb.first.x, aabb.second.x, xmin, xmax);
-  checkAxis(rayO.y, rayD.y, aabb.first.y, aabb.second.y, ymin, ymax);
-  checkAxis(rayO.z, rayD.z, aabb.first.z, aabb.second.z, zmin, zmax);
+  float t_min = -INFINITY;
+  float t_max = INFINITY;
+  float temp, invD, t0, t1;
 
-  float tmin = max(max(xmin, ymin), zmin);
-  float tmax = min(min(xmax, ymax), zmax);
+  for (int a = 0; a < 3; a++)
+  {
+    invD = 1.0 / rayD[a];
+    t0 = (aabb.first[a] - rayO[a]) * invD;
+    t1 = (aabb.second[a] - rayO[a]) * invD;
+    if (invD < 0.0) {
+      temp = t0;
+      t0 = t1;
+      t1 = temp;
+    }
+      // std::swap(t0, t1);
+    t_min = t0 > t_min ? t0 : t_min;
+    t_max = t1 < t_max ? t1 : t_max;
+    if (t_max <= t_min) {
+      return false;
+    }
+  }
+  return true;
 
-  return !(tmin > tmax);
+  // float xmin, xmax, ymin, ymax, zmin, zmax;
+  // checkAxis(rayO.x, rayD.x, aabb.first.x, aabb.second.x, xmin, xmax);
+  // checkAxis(rayO.y, rayD.y, aabb.first.y, aabb.second.y, ymin, ymax);
+  // checkAxis(rayO.z, rayD.z, aabb.first.z, aabb.second.z, zmin, zmax);
+
+  // float tmin = max(max(xmin, ymin), zmin);
+  // float tmax = min(min(xmax, ymax), zmax);
+
+  // return !(tmin > tmax);
 }
 
 const int MAX_STACK_SIZE = 25;
@@ -261,11 +264,11 @@ void intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout float resT, in
         t2 = triangleIntersect(rayO, rayD, blas.BLAS[primIdx + 1], uv);
       }
 
-      if ((t1 > EPSILON) && (t1 < resT) && (t2 < 0 || (t1 < t2))) {
+      if ((t1 > 0.001) && (t1 < resT) && (t2 < 0 || (t1 < t2))) {
         id = -(primIdx + 1);
         resT = t1;
       }
-      else if ((t2 > EPSILON) && (t2 < resT))
+      else if ((t2 > 0.001) && (t2 < resT))
       {
         id = -(primIdx + 2);
         resT = t2;
@@ -586,13 +589,14 @@ void main() {
     
   // Basic color path
   int id = 0;
-  vec4 color = renderScene(rayO, rayD, id);
+  // vec4 color = renderScene(rayO, rayD, id);
 
 
-  // color = vec4(1.0,0.0,0.0,1.0);
+  vec4 color = vec4(0.0,1.0,0.0,1.0);
 
           
   // store the rendered mandelbrot set into a storage buffer:
-  imageData[ubo.camera.width * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = color;
+  // imageData[ubo.camera.width * gl_GlobalInvocationID.y + gl_GlobalInvocationID.x].value = color;
+  imageStore(imageData, ivec2(gl_GlobalInvocationID.xy), color);
 }
 
