@@ -1,10 +1,9 @@
-#pragma once
+﻿#pragma once
 
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 
 #include <vulkan/vulkan.h>
 
-#include "VulkanInstance.h"
 #include "VulkanDevice.h"
 #include "VulkanPipeline.h"
 
@@ -23,7 +22,6 @@
 const uint32_t WIDTH = 800;
 const uint32_t HEIGHT = 600;
 const uint32_t WORKGROUP_SIZE = 32;
-
 
 #ifdef NDEBUG
 const bool enableValidationLayers = false;
@@ -55,12 +53,11 @@ public:
 
     std::vector<Primitives::Shape> shapes;
     Primitives::Mesh *mesh;
-    
+
     Primitives::BVH *bvh;
     std::vector<Primitives::NodeBLAS> blas;
 
 private:
-    VulkanInstance instance;
     Window window;
     VulkanDevice device;
     VulkanPipeline pipeline;
@@ -75,9 +72,7 @@ private:
 
     void finaliseMainCommandBuffer();
     //    void flushCommandBuffer(VkCommandBuffer commandBuffer, bool free);
-    void addSSBOBuffer(void* buffer, size_t bufferSize, VkCommandBuffer& copyCmd, VkBufferCopy copyRegion);
-
-    
+    void addSSBOBuffer(void *buffer, size_t bufferSize, VkCommandBuffer &copyCmd, VkBufferCopy copyRegion);
 
     void saveRenderedImage();
 

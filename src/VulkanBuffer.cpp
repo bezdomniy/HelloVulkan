@@ -10,7 +10,7 @@
 #include <cstring>
 #include <cassert>
 
-VulkanBuffer::VulkanBuffer(VkDevice &device, VkPhysicalDevice &physicalDevice) : device(device), physicalDevice(physicalDevice)
+VulkanBuffer::VulkanBuffer(VkDevice &device) : device(device)
 {
 }
 

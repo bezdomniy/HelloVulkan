@@ -18,10 +18,9 @@ private:
     VkDescriptorBufferInfo descriptorBufferInfo;
 
     VkDevice &device;
-    VkPhysicalDevice &physicalDevice;
 
 public:
-    VulkanBuffer(VkDevice &parentDevice, VkPhysicalDevice &parentPhysicalDevice);
+    VulkanBuffer(VkDevice &parentDevice);
     void init(VkDeviceSize size, void *data = nullptr);
     virtual ~VulkanBuffer();
 

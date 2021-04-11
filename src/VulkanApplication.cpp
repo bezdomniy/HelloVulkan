@@ -2,13 +2,15 @@
 
 void VulkanApplication::initVulkan()
 {
-    instance.init();
-    device.init(instance);
+    // instance.init();
+
+    window = Window(WIDTH, HEIGHT);
+    device.init(window);
     device.createCommandPool(commandPool);
 
     //    Output buffer
     // device.addBuffer(VK_BUFFER_USAGE_STORAGE_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_COHERENT_BIT | VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT, outBufferSize);
-    device.createImage(WIDTH, HEIGHT, VK_FORMAT_R8G8B8A8_UNORM, commandPool, this->outBufferSize);
+    device.createImage(WIDTH, HEIGHT, VK_FORMAT_R32G32B32A32_SFLOAT, commandPool, this->outBufferSize);
 
     // Uniform buffer //TODO: make the offset for this start at 1, not 0
     device.addBuffer(VK_BUFFER_USAGE_UNIFORM_BUFFER_BIT, VK_MEMORY_PROPERTY_HOST_VISIBLE_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT, uniformBufferSize);
@@ -26,12 +28,10 @@ void VulkanApplication::initVulkan()
 
     std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
 
-    pipeline.init(device.getBuffers(), bufferTypes, device.getOutputTexture().descriptor ,"../../../src/shaders/comp.spv");
+    pipeline.init(device.getBuffers(), bufferTypes, device.getOutputTexture().descriptor, "../../../src/shaders/comp.spv");
 
     device.createCommandBuffer(commandBuffer, commandPool);
     finaliseMainCommandBuffer();
-    
-    window = Window(instance,WIDTH,HEIGHT);
 }
 
 void VulkanApplication::mainLoop()
@@ -56,16 +56,13 @@ void VulkanApplication::cleanup()
     {
         buf.destroy();
     }
+    device.getOutputTexture().destroy(device.getLogical());
     device.destroyCommandBuffer(commandBuffer, commandPool, false);
     vkDestroyCommandPool(device.getLogical(), commandPool, nullptr);
 
     pipeline.destroy();
-    vkDestroyDevice(device.getLogical(), nullptr);
-    
-    vkDestroySurfaceKHR(instance, window.surface, nullptr);
-    vkDestroyInstance(instance, nullptr);
+    device.destroy(window);
 }
-
 
 void VulkanApplication::finaliseMainCommandBuffer()
 {
@@ -80,27 +77,23 @@ void VulkanApplication::finaliseMainCommandBuffer()
     }
 }
 
-
 void VulkanApplication::saveRenderedImage()
 {
     void *mappedMemory = nullptr;
-    
+
     VkImageSubresource subres = {
-         VK_IMAGE_ASPECT_COLOR_BIT,
-         0,
-         0
-     };
-     VkSubresourceLayout layout;
-     vkGetImageSubresourceLayout(device.getLogical(), device.getOutputTexture().image, &subres, &layout);
+        VK_IMAGE_ASPECT_COLOR_BIT,
+        0,
+        0};
+    VkSubresourceLayout layout;
+    vkGetImageSubresourceLayout(device.getLogical(), device.getOutputTexture().image, &subres, &layout);
 
-
-    
     // Map the buffer memory, so that we can read from it on the CPU.
-//    vkMapMemory(device.getLogical(), device.getBuffer(0).getMemory(), 0, outBufferSize, 0, &mappedMemory);
+    //    vkMapMemory(device.getLogical(), device.getBuffer(0).getMemory(), 0, outBufferSize, 0, &mappedMemory);
     vkMapMemory(device.getLogical(), device.getOutputTexture().deviceMemory, layout.offset, VK_WHOLE_SIZE, 0, &mappedMemory);
-//    glm::vec4 *pmappedMemory = (glm::vec4 *)mappedMemory;
-    
-    glm::vec4 *pmappedMemory = new glm::vec4[WIDTH*HEIGHT];
+    //    glm::vec4 *pmappedMemory = (glm::vec4 *)mappedMemory;
+
+    glm::vec4 *pmappedMemory = new glm::vec4[WIDTH * HEIGHT];
     memcpy(pmappedMemory, mappedMemory, outBufferSize);
     // Done reading, so unmap.
     vkUnmapMemory(device.getLogical(), device.getOutputTexture().deviceMemory);
@@ -189,7 +182,7 @@ void VulkanApplication::addSSBOBuffer(void *buffer, size_t bufferSize, VkCommand
     vkCmdCopyBuffer(copyCmd, device.getBuffer(device.getBuffers().size() - 1).getBuffer(), device.getBuffer(device.getBuffers().size() - 2).getBuffer(), 1, &copyRegion);
     device.runCommandBuffer(copyCmd, commandPool, true, true);
 
-//    TODO: change to .back()
+    //    TODO: change to .back()
     device.getBuffer(device.getBuffers().size() - 1).destroy();
     device.getBuffers().pop_back();
 }
@@ -231,7 +224,7 @@ int main()
 {
     VulkanApplication app;
 
-//    app.outBufferSize = sizeof(glm::vec4) * WIDTH * HEIGHT;
+    //    app.outBufferSize = sizeof(glm::vec4) * WIDTH * HEIGHT;
     app.uniformBufferSize = sizeof(UBOCompute);
     //    app.uniformBufferSize = 0;
 

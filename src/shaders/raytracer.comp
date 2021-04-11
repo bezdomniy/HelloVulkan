@@ -589,10 +589,10 @@ void main() {
     
   // Basic color path
   int id = 0;
-  // vec4 color = renderScene(rayO, rayD, id);
+  vec4 color = renderScene(rayO, rayD, id);
 
 
-  vec4 color = vec4(0.0,1.0,0.0,1.0);
+  // vec4 color = vec4(0.0,1.0,0.0,1.0);
 
           
   // store the rendered mandelbrot set into a storage buffer:

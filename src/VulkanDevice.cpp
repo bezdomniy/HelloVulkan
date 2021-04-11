@@ -4,14 +4,63 @@ VulkanDevice::VulkanDevice()
 {
 }
 
-void VulkanDevice::init(const VkInstance &vkInstance)
+void VulkanDevice::init(Window &window)
 {
-    pickPhysicalDevice(vkInstance);
-    createLogicalDevice();
+    vkb::InstanceBuilder builder;
+    auto inst_ret = builder.set_app_name("Vulkan Ray Tracer")
+                        .request_validation_layers()
+                        .enable_extension("VK_KHR_get_physical_device_properties2")
+                        .use_default_debug_messenger()
+                        .build();
 
-    vkGetPhysicalDeviceMemoryProperties(vkPhysicalDevice, &this->memoryProperties);
+    if (!inst_ret)
+    {
+        throw std::runtime_error("Failed to create Vulkan instance. Error: " + inst_ret.error().message());
+    }
+    vkbInstance = inst_ret.value();
+
+    window.createSurface(vkbInstance.instance);
+
+    vkb::PhysicalDeviceSelector selector{vkbInstance};
+    selector.add_required_extension("VK_KHR_portability_subset");
+    auto phys_ret = selector.set_surface(window.surface)
+                        .set_minimum_version(1, 1) // require a vulkan 1.1 capable device
+                                                   //                        .require_dedicated_transfer_queue()
+                        .select();
+    if (!phys_ret)
+    {
+        throw std::runtime_error("Failed to select Vulkan Physical Device. Error: " + phys_ret.error().message());
+    }
+
+    vkGetPhysicalDeviceMemoryProperties(phys_ret.value().physical_device, &this->memoryProperties);
+
+    vkb::DeviceBuilder device_builder{phys_ret.value()};
+    // automatically propagate needed data from instance & physical device
+    auto dev_ret = device_builder.build();
+    if (!dev_ret)
+    {
+        throw std::runtime_error("Could not find a matching memory type" + dev_ret.error().message());
+    }
+    vkbDevice = dev_ret.value();
+
+    findQueueFamilies();
 
     buffers.reserve(5);
+}
+
+static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
+    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
+    if (func != nullptr) {
+        func(instance, debugMessenger, pAllocator);
+    }
+}
+
+void VulkanDevice::destroy(Window &window) {
+    vkDestroyDevice(getLogical(), nullptr);
+
+    window.destroy(getInstance());
+    DestroyDebugUtilsMessengerEXT(getInstance(), vkbInstance.debug_messenger, nullptr);
+    vkDestroyInstance(getInstance(), nullptr);
 }
 
 uint32_t VulkanDevice::getMemoryType(uint32_t typeBits, VkMemoryPropertyFlags properties)
@@ -36,144 +85,42 @@ VulkanDevice::~VulkanDevice()
     //    vkDestroyDevice(vkDevice, nullptr);
 }
 
-void VulkanDevice::findQueueFamilies(VkPhysicalDevice device)
+void VulkanDevice::findQueueFamilies()
 {
-    uint32_t queueFamilyCount = 0;
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, nullptr);
-
-    std::vector<VkQueueFamilyProperties> queueFamilies(queueFamilyCount);
-    vkGetPhysicalDeviceQueueFamilyProperties(device, &queueFamilyCount, queueFamilies.data());
-
-    int i = 0;
-    for (const auto &queueFamily : queueFamilies)
+    for (uint32_t i = 0; i < static_cast<uint32_t>(vkbDevice.queue_families.size()); i++)
     {
-        if ((queueFamily.queueFlags & VK_QUEUE_COMPUTE_BIT) && (queueFamily.queueFlags & VK_QUEUE_TRANSFER_BIT))
+        if (vkbDevice.queue_families[i].queueFlags & VK_QUEUE_GRAPHICS_BIT)
         {
-            indices.computeFamily = i;
-        }
+            // Find the first queue family with graphics operations supported
+            queueDescriptions.push_back(vkb::CustomQueueDescription(
+                i, vkbDevice.queue_families[i].queueCount,
+                std::vector<float>(vkbDevice.queue_families[i].queueCount, 1.0f)));
 
-        if (indices.isComplete())
-        {
-            break;
-        }
-
-        i++;
-    }
-}
-
-bool VulkanDevice::checkDeviceExtensionSupport(VkPhysicalDevice device)
-{
-    uint32_t extensionCount;
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, nullptr);
-
-    std::vector<VkExtensionProperties> availableExtensions(extensionCount);
-    vkEnumerateDeviceExtensionProperties(device, nullptr, &extensionCount, availableExtensions.data());
-
-    std::set<std::string> requiredExtensions(deviceExtensions.begin(), deviceExtensions.end());
-
-    for (const auto &extension : availableExtensions)
-    {
-        requiredExtensions.erase(extension.extensionName);
-    }
-
-    return requiredExtensions.empty();
-}
-
-bool VulkanDevice::isDeviceSuitable(VkPhysicalDevice device)
-{
-    findQueueFamilies(device);
-    bool extensionsSupported = checkDeviceExtensionSupport(device);
-
-    VkPhysicalDeviceFeatures supportedFeatures;
-    vkGetPhysicalDeviceFeatures(device, &supportedFeatures);
-
-    return indices.isComplete() && extensionsSupported && supportedFeatures.robustBufferAccess;
-}
-
-void VulkanDevice::pickPhysicalDevice(const VkInstance &vkInstance)
-{
-    uint32_t deviceCount = 0;
-    vkEnumeratePhysicalDevices(vkInstance, &deviceCount, nullptr);
-
-    if (deviceCount == 0)
-    {
-        throw std::runtime_error("failed to find GPUs with Vulkan support!");
-    }
-
-    std::vector<VkPhysicalDevice> devices(deviceCount);
-    vkEnumeratePhysicalDevices(vkInstance, &deviceCount, devices.data());
-
-    for (const auto &device : devices)
-    {
-        if (isDeviceSuitable(device))
-        {
-            vkPhysicalDevice = device;
             break;
         }
     }
 
-    if (vkPhysicalDevice == VK_NULL_HANDLE)
+    if (queueDescriptions.empty())
     {
-        throw std::runtime_error("failed to find a suitable GPU!");
+        throw std::runtime_error("failed to find compute queue!");
     }
+
+    vkGetDeviceQueue(vkbDevice.device, queueDescriptions[0].index, 0, &computeQueue);
 }
 
-void VulkanDevice::createLogicalDevice()
+VkInstance &VulkanDevice::getInstance()
 {
-    std::vector<VkDeviceQueueCreateInfo> queueCreateInfos;
-    std::set<uint32_t> uniqueQueueFamilies = {indices.computeFamily.value()};
-
-    float queuePriority = 1.0f;
-    for (uint32_t queueFamily : uniqueQueueFamilies)
-    {
-        VkDeviceQueueCreateInfo queueCreateInfo{};
-        queueCreateInfo.sType = VK_STRUCTURE_TYPE_DEVICE_QUEUE_CREATE_INFO;
-        queueCreateInfo.queueFamilyIndex = queueFamily;
-        queueCreateInfo.queueCount = 1;
-        queueCreateInfo.pQueuePriorities = &queuePriority;
-        queueCreateInfos.push_back(queueCreateInfo);
-    }
-
-    VkPhysicalDeviceFeatures deviceFeatures{};
-    deviceFeatures.robustBufferAccess = VK_TRUE;
-
-    VkDeviceCreateInfo createInfo{};
-    createInfo.sType = VK_STRUCTURE_TYPE_DEVICE_CREATE_INFO;
-
-    createInfo.queueCreateInfoCount = static_cast<uint32_t>(queueCreateInfos.size());
-    createInfo.pQueueCreateInfos = queueCreateInfos.data();
-
-    createInfo.pEnabledFeatures = &deviceFeatures;
-
-    createInfo.enabledExtensionCount = static_cast<uint32_t>(deviceExtensions.size());
-    createInfo.ppEnabledExtensionNames = deviceExtensions.data();
-
-    if (enableValidationLayers)
-    {
-        createInfo.enabledLayerCount = static_cast<uint32_t>(validationLayers.size());
-        createInfo.ppEnabledLayerNames = validationLayers.data();
-    }
-    else
-    {
-        createInfo.enabledLayerCount = 0;
-    }
-
-    if (vkCreateDevice(vkPhysicalDevice, &createInfo, nullptr, &vkDevice) != VK_SUCCESS)
-    {
-        throw std::runtime_error("failed to create logical device!");
-    }
-
-    vkGetDeviceQueue(vkDevice, indices.computeFamily.value(), 0, &computeQueue);
+    return vkbInstance.instance;
 }
 
-VkPhysicalDevice &VulkanDevice::getPhysical()
-{
-    return vkPhysicalDevice;
-}
+//VkPhysicalDevice &VulkanDevice::getPhysical()
+//{
+//    return vkPhysicalDevice;
+//}
 
 VkDevice &VulkanDevice::getLogical()
 {
-    return vkDevice;
+    return vkbDevice.device;
 }
 
 VkQueue &VulkanDevice::getQueue()
@@ -181,19 +128,14 @@ VkQueue &VulkanDevice::getQueue()
     return computeQueue;
 }
 
-QueueFamilyIndices &VulkanDevice::getQueueFamilyIndices()
-{
-    return indices;
-}
-
 void VulkanDevice::addBuffer(VkBufferUsageFlags usageFlags, VkMemoryPropertyFlags memoryPropertyFlags, VkDeviceSize size, void *data)
 {
-    buffers.emplace_back(this->vkDevice, this->vkPhysicalDevice);
+    buffers.emplace_back(vkbDevice.device);
 
     createBuffer(buffers.back().getBuffer(), usageFlags, size);
 
     VkMemoryRequirements memReqs;
-    vkGetBufferMemoryRequirements(vkDevice, buffers.back().getBuffer(), &memReqs);
+    vkGetBufferMemoryRequirements(vkbDevice.device, buffers.back().getBuffer(), &memReqs);
 
     uint32_t memoryIndex = this->getMemoryType(memReqs.memoryTypeBits, memoryPropertyFlags);
 
@@ -213,15 +155,15 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
     imageCreateInfo.format = format;
     imageCreateInfo.extent = {width, height, 1};
     imageCreateInfo.mipLevels = 1;
-//    imageCreateInfo.format            = VK_FORMAT_R32G32B32A32_SFLOAT;
+    //    imageCreateInfo.format            = VK_FORMAT_R32G32B32A32_SFLOAT;
     imageCreateInfo.arrayLayers = 1;
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.tiling = VK_IMAGE_TILING_LINEAR;
     imageCreateInfo.initialLayout = VK_IMAGE_LAYOUT_UNDEFINED;
     // Image will be sampled in the fragment shader and used as storage target in the compute shader
     imageCreateInfo.usage = VK_IMAGE_USAGE_SAMPLED_BIT | VK_IMAGE_USAGE_STORAGE_BIT;
-    
-    imageCreateInfo.sharingMode       = VK_SHARING_MODE_EXCLUSIVE;
+
+    imageCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
     imageCreateInfo.flags = 0;
 
     VkMemoryAllocateInfo memAllocInfo{};
@@ -229,16 +171,16 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
 
     VkMemoryRequirements memReqs;
 
-    vkCreateImage(vkDevice, &imageCreateInfo, nullptr, &this->outputTexture.image);
-    vkGetImageMemoryRequirements(vkDevice, this->outputTexture.image, &memReqs);
-    
+    vkCreateImage(vkbDevice.device, &imageCreateInfo, nullptr, &this->outputTexture.image);
+    vkGetImageMemoryRequirements(vkbDevice.device, this->outputTexture.image, &memReqs);
+
     size = memReqs.size;
-    
+
     memAllocInfo.allocationSize = memReqs.size;
     memAllocInfo.memoryTypeIndex = this->getMemoryType(memReqs.memoryTypeBits, VK_MEMORY_PROPERTY_DEVICE_LOCAL_BIT | VK_MEMORY_PROPERTY_HOST_COHERENT_BIT); //TODO: figure out optimal combo of these flags
-    vkAllocateMemory(vkDevice, &memAllocInfo, nullptr, &this->outputTexture.deviceMemory);
-    vkBindImageMemory(vkDevice, this->outputTexture.image, this->outputTexture.deviceMemory, 0);
-    
+    vkAllocateMemory(vkbDevice.device, &memAllocInfo, nullptr, &this->outputTexture.deviceMemory);
+    vkBindImageMemory(vkbDevice.device, this->outputTexture.image, this->outputTexture.deviceMemory, 0);
+
     VkCommandBuffer layoutCmd;
     createCommandBuffer(layoutCmd, commandPool);
 
@@ -251,37 +193,37 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
         this->outputTexture.imageLayout);
 
     runCommandBuffer(layoutCmd, commandPool, true, true);
-    
+
     // Create sampler
-    VkSamplerCreateInfo sampler {};
-    sampler.sType               = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
-    sampler.maxAnisotropy       = 1.0f;
-    sampler.magFilter           = VK_FILTER_LINEAR;
-    sampler.minFilter           = VK_FILTER_LINEAR;
-    sampler.mipmapMode          = VK_SAMPLER_MIPMAP_MODE_LINEAR;
-    sampler.addressModeU        = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
-    sampler.addressModeV        = sampler.addressModeU;
-    sampler.addressModeW        = sampler.addressModeU;
-    sampler.mipLodBias          = 0.0f;
-    sampler.maxAnisotropy       = 1.0f;
-    sampler.compareOp           = VK_COMPARE_OP_NEVER;
-    sampler.minLod              = 0.0f;
-    sampler.maxLod              = 0.0f;
-    sampler.borderColor         = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
-    vkCreateSampler(vkDevice, &sampler, nullptr, &this->outputTexture.sampler);
+    VkSamplerCreateInfo sampler{};
+    sampler.sType = VK_STRUCTURE_TYPE_SAMPLER_CREATE_INFO;
+    sampler.maxAnisotropy = 1.0f;
+    sampler.magFilter = VK_FILTER_LINEAR;
+    sampler.minFilter = VK_FILTER_LINEAR;
+    sampler.mipmapMode = VK_SAMPLER_MIPMAP_MODE_LINEAR;
+    sampler.addressModeU = VK_SAMPLER_ADDRESS_MODE_CLAMP_TO_BORDER;
+    sampler.addressModeV = sampler.addressModeU;
+    sampler.addressModeW = sampler.addressModeU;
+    sampler.mipLodBias = 0.0f;
+    sampler.maxAnisotropy = 1.0f;
+    sampler.compareOp = VK_COMPARE_OP_NEVER;
+    sampler.minLod = 0.0f;
+    sampler.maxLod = 0.0f;
+    sampler.borderColor = VK_BORDER_COLOR_FLOAT_OPAQUE_WHITE;
+    vkCreateSampler(vkbDevice.device, &sampler, nullptr, &this->outputTexture.sampler);
 
     // Create image view
-    VkImageViewCreateInfo view {};
-    view.sType                 = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
-    view.viewType              = VK_IMAGE_VIEW_TYPE_2D;
-    view.format                = format;
-    view.components            = {VK_COMPONENT_SWIZZLE_R, VK_COMPONENT_SWIZZLE_G, VK_COMPONENT_SWIZZLE_B, VK_COMPONENT_SWIZZLE_A};
-    view.subresourceRange      = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
-    view.image                 = this->outputTexture.image;
-    vkCreateImageView(vkDevice, &view, nullptr, &this->outputTexture.view);
-    
-    this->outputTexture.descriptor.imageView   = this->outputTexture.view;
-    this->outputTexture.descriptor.sampler     = this->outputTexture.sampler; // Works without this one and the next one, why?
+    VkImageViewCreateInfo view{};
+    view.sType = VK_STRUCTURE_TYPE_IMAGE_VIEW_CREATE_INFO;
+    view.viewType = VK_IMAGE_VIEW_TYPE_2D;
+    view.format = format;
+    view.components = {VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY, VK_COMPONENT_SWIZZLE_IDENTITY};
+    view.subresourceRange = {VK_IMAGE_ASPECT_COLOR_BIT, 0, 1, 0, 1};
+    view.image = this->outputTexture.image;
+    vkCreateImageView(vkbDevice.device, &view, nullptr, &this->outputTexture.view);
+
+    this->outputTexture.descriptor.imageView = this->outputTexture.view;
+    this->outputTexture.descriptor.sampler = this->outputTexture.sampler; // Works without this one and the next one, why?
     this->outputTexture.descriptor.imageLayout = this->outputTexture.imageLayout;
 }
 
@@ -295,7 +237,8 @@ std::vector<VulkanBuffer> &VulkanDevice::getBuffers()
     return buffers;
 }
 
-VulkanTexture &VulkanDevice::getOutputTexture() {
+VulkanTexture &VulkanDevice::getOutputTexture()
+{
     return outputTexture;
 }
 
@@ -306,7 +249,7 @@ void VulkanDevice::createBuffer(VkBuffer &buffer, VkBufferUsageFlags usageFlags,
     bufferCreateInfo.usage = usageFlags;
     bufferCreateInfo.size = size;
     bufferCreateInfo.sharingMode = VK_SHARING_MODE_EXCLUSIVE;
-    vkCreateBuffer(vkDevice, &bufferCreateInfo, nullptr, &buffer);
+    vkCreateBuffer(vkbDevice.device, &bufferCreateInfo, nullptr, &buffer);
 }
 
 void VulkanDevice::allocateBufferMemory(VkBuffer &buffer, VkDeviceMemory &memory, uint32_t size, uint32_t memoryIndex)
@@ -319,7 +262,7 @@ void VulkanDevice::allocateBufferMemory(VkBuffer &buffer, VkDeviceMemory &memory
     memAlloc.allocationSize = size;
     memAlloc.memoryTypeIndex = memoryIndex;
 
-    if (vkAllocateMemory(vkDevice, &memAlloc, nullptr, &memory) != VK_SUCCESS)
+    if (vkAllocateMemory(vkbDevice.device, &memAlloc, nullptr, &memory) != VK_SUCCESS)
     {
         throw std::runtime_error("failed to allocate buffer memory!");
     }
@@ -329,7 +272,7 @@ void VulkanDevice::createCommandPool(VkCommandPool &commandPool)
 {
     VkCommandPoolCreateInfo poolInfo{};
     poolInfo.sType = VK_STRUCTURE_TYPE_COMMAND_POOL_CREATE_INFO;
-    poolInfo.queueFamilyIndex = getQueueFamilyIndices().computeFamily.value();
+    poolInfo.queueFamilyIndex = queueDescriptions[0].index;
 
     if (vkCreateCommandPool(getLogical(), &poolInfo, nullptr, &commandPool) != VK_SUCCESS)
     {
@@ -402,7 +345,6 @@ void VulkanDevice::runCommandBuffer(VkCommandBuffer &cmdBuffer, VkCommandPool &c
     }
 }
 
-
 void VulkanDevice::destroyCommandBuffer(VkCommandBuffer &cmdBuffer, VkCommandPool &commandPool, bool end)
 {
     if (end)
@@ -414,9 +356,9 @@ void VulkanDevice::destroyCommandBuffer(VkCommandBuffer &cmdBuffer, VkCommandPoo
 }
 
 void VulkanDevice::setImageLayout(VkCommandBuffer cmdbuffer,
-                    VkImage image,
-                    VkImageAspectFlags aspectMask,
-                    VkImageLayout oldImageLayout,
+                                  VkImage image,
+                                  VkImageAspectFlags aspectMask,
+                                  VkImageLayout oldImageLayout,
                                   VkImageLayout newImageLayout)
 {
     VkImageSubresourceRange subresourceRange = {};
@@ -424,14 +366,13 @@ void VulkanDevice::setImageLayout(VkCommandBuffer cmdbuffer,
     subresourceRange.baseMipLevel = 0;
     subresourceRange.levelCount = 1;
     subresourceRange.layerCount = 1;
-    
-    
+
     // Create an image barrier object
-    VkImageMemoryBarrier imageMemoryBarrier {};
+    VkImageMemoryBarrier imageMemoryBarrier{};
     imageMemoryBarrier.sType = VK_STRUCTURE_TYPE_IMAGE_MEMORY_BARRIER;
     imageMemoryBarrier.srcQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
     imageMemoryBarrier.dstQueueFamilyIndex = VK_QUEUE_FAMILY_IGNORED;
-    
+
     imageMemoryBarrier.oldLayout = oldImageLayout;
     imageMemoryBarrier.newLayout = newImageLayout;
     imageMemoryBarrier.image = image;
@@ -535,8 +476,8 @@ void VulkanDevice::setImageLayout(VkCommandBuffer cmdbuffer,
     // Put barrier inside setup command buffer
     vkCmdPipelineBarrier(
         cmdbuffer,
-        0,
-        0,
+         VK_PIPELINE_STAGE_TOP_OF_PIPE_BIT,
+         VK_PIPELINE_STAGE_TRANSFER_BIT,
         0,
         0, nullptr,
         0, nullptr,

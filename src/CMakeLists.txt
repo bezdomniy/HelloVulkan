@@ -36,4 +36,4 @@ message("And I can include it? " ${Vulkan_INCLUDE_DIR})
 message("${Vulkan}")
 
 target_include_directories(HelloVulkan PRIVATE ${Vulkan_INCLUDE_DIR})
-target_link_libraries(HelloVulkan PRIVATE glfw ${GLM_LIBRARY} ${Vulkan_LIBRARY})
+target_link_libraries(HelloVulkan PRIVATE glfw ${GLM_LIBRARY} ${Vulkan_LIBRARY} vk-bootstrap)
