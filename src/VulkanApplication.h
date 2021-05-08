@@ -1,4 +1,4 @@
-﻿#pragma once
+#pragma once
 
 #define GLM_FORCE_DEFAULT_ALIGNED_GENTYPES
 
@@ -19,8 +19,8 @@
 #include <fstream>
 #include <vector>
 
-const uint32_t WIDTH = 800;
-const uint32_t HEIGHT = 600;
+const uint32_t WIDTH = 2400;
+const uint32_t HEIGHT = 1800;
 const uint32_t WORKGROUP_SIZE = 32;
 
 #ifdef NDEBUG

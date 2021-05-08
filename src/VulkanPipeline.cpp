@@ -45,7 +45,7 @@ void VulkanPipeline::createDescriptorPool() {
 
     VkDescriptorPoolCreateInfo descriptorPoolCreateInfo = {};
     descriptorPoolCreateInfo.sType = VK_STRUCTURE_TYPE_DESCRIPTOR_POOL_CREATE_INFO;
-    descriptorPoolCreateInfo.maxSets = 4;
+    descriptorPoolCreateInfo.maxSets = 6;
     descriptorPoolCreateInfo.poolSizeCount = poolSizes.size();
     descriptorPoolCreateInfo.pPoolSizes = poolSizes.data();
 

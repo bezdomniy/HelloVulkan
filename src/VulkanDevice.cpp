@@ -48,18 +48,11 @@ void VulkanDevice::init(Window &window)
     buffers.reserve(5);
 }
 
-static void DestroyDebugUtilsMessengerEXT(VkInstance instance, VkDebugUtilsMessengerEXT debugMessenger, const VkAllocationCallbacks* pAllocator) {
-    auto func = (PFN_vkDestroyDebugUtilsMessengerEXT) vkGetInstanceProcAddr(instance, "vkDestroyDebugUtilsMessengerEXT");
-    if (func != nullptr) {
-        func(instance, debugMessenger, pAllocator);
-    }
-}
-
 void VulkanDevice::destroy(Window &window) {
     vkDestroyDevice(getLogical(), nullptr);
 
     window.destroy(getInstance());
-    DestroyDebugUtilsMessengerEXT(getInstance(), vkbInstance.debug_messenger, nullptr);
+    vkb::destroy_debug_utils_messenger(getInstance(), vkbInstance.debug_messenger);
     vkDestroyInstance(getInstance(), nullptr);
 }
 
@@ -113,11 +106,6 @@ VkInstance &VulkanDevice::getInstance()
     return vkbInstance.instance;
 }
 
-//VkPhysicalDevice &VulkanDevice::getPhysical()
-//{
-//    return vkPhysicalDevice;
-//}
-
 VkDevice &VulkanDevice::getLogical()
 {
     return vkbDevice.device;
@@ -155,7 +143,6 @@ void VulkanDevice::createImage(uint32_t width, uint32_t height, VkFormat format,
     imageCreateInfo.format = format;
     imageCreateInfo.extent = {width, height, 1};
     imageCreateInfo.mipLevels = 1;
-    //    imageCreateInfo.format            = VK_FORMAT_R32G32B32A32_SFLOAT;
     imageCreateInfo.arrayLayers = 1;
     imageCreateInfo.samples = VK_SAMPLE_COUNT_1_BIT;
     imageCreateInfo.tiling = VK_IMAGE_TILING_LINEAR;

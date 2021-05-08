@@ -264,13 +264,13 @@ void intersectTLAS(in vec4 rayO, in vec4 rayD, out vec2 uv, inout float resT, in
         t2 = triangleIntersect(rayO, rayD, blas.BLAS[primIdx + 1], uv);
       }
 
-      if ((t1 > 0.001) && (t1 < resT) && (t2 < 0 || (t1 < t2))) {
-        id = -(primIdx + 1);
+      if ((t1 > EPSILON) && (t1 < resT) && (t2 < 0 || (t1 < t2))) {
+        id = -(primIdx + 2);
         resT = t1;
       }
-      else if ((t2 > 0.001) && (t2 < resT))
+      else if ((t2 > EPSILON) && (t2 < resT))
       {
-        id = -(primIdx + 2);
+        id = -(primIdx + 3);
         resT = t2;
       }
     }
@@ -436,10 +436,10 @@ bool isShadowed(in vec4 point, in vec4 lightPos)
   // Geometry::Intersection<Shape> *hit = Geometry::hit<Shape>(intersections);
   float t = MAXLEN;
   vec2 uv;
-  int id = intersect(point, direction, t, uv);
+  intersect(point, direction, t, uv);
 
   // if ((id >= 0 && t < distance))
-  if (t > 0 && t < distance)
+  if (t > EPSILON && t < distance)
   {
     return true;
   }
@@ -498,8 +498,9 @@ vec4 lighting(in Material material, in vec4 lightPos, in HitParams hitParams, in
   return (ambient + diffuse + specular);
 }
 
-vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
+vec4 renderScene(in vec4 rayO, in vec4 rayD)
 {
+  // int id = 0;
   vec4 color = vec4(0.0);
   vec2 uv;
   float t = MAXLEN;
@@ -507,7 +508,7 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
   // Get intersected object ID
   int objectID = intersect(rayO, rayD, t, uv);
   
-  if (t >= MAXLEN)
+  if (t >= MAXLEN || objectID == -1)
   {
     return color;
   }
@@ -524,22 +525,20 @@ vec4 renderScene(in vec4 rayO, in vec4 rayD, in int id)
         HitParams hitParams = getHitParams(rayO, rayD, t, shapes[i].inverseTransform, shapes[i].typeEnum, shapes[i].data[3], shapes[i].data[4], shapes[i].data[5], uv);
 
         bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
-        // bool shadowed = false;
         color = lighting(shapes[i].material, ubo.lightPos,
                                 hitParams, shadowed);
-        // color = vec4(0.0,1.0,0.0,1.0);
+        // color = vec4(1.0,0.0,0.0,1.0);
       }
     }
   }
 
   else {
-      HitParams hitParams = getHitParams(rayO, rayD, t, tlas.inverseTransform, 2, blas.BLAS[-(objectID+1)].normal1, blas.BLAS[-(objectID+1)].normal2, blas.BLAS[-(objectID+1)].normal3, uv);
+      HitParams hitParams = getHitParams(rayO, rayD, t, tlas.inverseTransform, 2, blas.BLAS[-(objectID+2)].normal1, blas.BLAS[-(objectID+2)].normal2, blas.BLAS[-(objectID+2)].normal3, uv);
 
       bool shadowed = isShadowed(hitParams.overPoint, ubo.lightPos);
-      // bool shadowed = false;
       color = lighting(tlas.material, ubo.lightPos,
                               hitParams, shadowed);
-      // color = vec4(1.0,0.0,0.0,1.0);
+      // color = vec4(0.0,1.0,0.0,1.0);
   }
 
 
@@ -588,8 +587,8 @@ void main() {
   rayForPixel(gl_GlobalInvocationID.xy, rayO, rayD);
     
   // Basic color path
-  int id = 0;
-  vec4 color = renderScene(rayO, rayD, id);
+  
+  vec4 color = renderScene(rayO, rayD);
 
 
   // vec4 color = vec4(0.0,1.0,0.0,1.0);

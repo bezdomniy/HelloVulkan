@@ -25,6 +25,8 @@ void VulkanApplication::initVulkan()
 
     addSSBOBuffer(bvh, bvhBufferSize, copyCmd, copyRegion);
     addSSBOBuffer(blas.data(), blasBufferSize, copyCmd, copyRegion);
+    
+//    std::cout << bvhBufferSize << ", " << blasBufferSize << std::endl;
 
     std::vector<VkDescriptorType> bufferTypes = {VK_DESCRIPTOR_TYPE_STORAGE_IMAGE, VK_DESCRIPTOR_TYPE_UNIFORM_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER, VK_DESCRIPTOR_TYPE_STORAGE_BUFFER};
 
@@ -147,17 +149,20 @@ void VulkanApplication::createShapes()
 
     //    glm::mat4 t(1.0f);
     //        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(1.2,1.2,1.2));
-    //    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.6, 0.6, 0.6));
-    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.003, 0.003, 0.003));
+        glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.6, 0.6, 0.6));
+//    glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.003, 0.003, 0.003));
     // glm::mat4 scale = glm::scale(glm::mat4(1.0), glm::vec3(0.02, 0.02, 0.02));
-    glm::mat4 translate = glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 0.f, 0.5f));
+    glm::mat4 translate = glm::translate(glm::mat4(1.0), glm::vec3(-0.5f, 0.6f, 0.5f));
     glm::mat4 sT = translate * scale;
+    
+    
+    glm::mat4 sT2 = glm::translate(glm::mat4(1.0), glm::vec3(-10.f, 10.f, 15.f)) * scale;
 
     //    glm::mat4 sT(1.0);
     //    Primitives::Shape s = Primitives::makeSphere(mat, sT);
-    mesh = Primitives::makeMesh("../../../assets/models/cube.obj", mat, sT, meshBufferSize);
+    mesh = Primitives::makeMesh("../../../assets/models/cube.obj", mat, sT2, meshBufferSize);
 
-    std::tie(bvh, blas) = Primitives::makeBVH("../../../assets/models/lucy.obj", mat, sT, bvhBufferSize);
+    std::tie(bvh, blas) = Primitives::makeBVH("../../../assets/models/armadillo2.obj", mat, sT, bvhBufferSize);
     blasBufferSize = blas.size() * sizeof(Primitives::NodeBLAS);
 
     //    bvhBufferSize += 16;
@@ -183,7 +188,7 @@ void VulkanApplication::addSSBOBuffer(void *buffer, size_t bufferSize, VkCommand
     device.runCommandBuffer(copyCmd, commandPool, true, true);
 
     //    TODO: change to .back()
-    device.getBuffer(device.getBuffers().size() - 1).destroy();
+    device.getBuffers().back().destroy();
     device.getBuffers().pop_back();
 }
 
